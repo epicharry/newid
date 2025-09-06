@@ -1100,6 +1100,8 @@ function App() {
           isSyncing={cloudSync.isSyncing}
           isFullscreen={isFullscreen}
           onToggleFullscreen={toggleFullscreen}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={toggleFullscreen}
         />
         <YouTubeInput
           onVideosSelect={handleWatchYouTubeVideos}
@@ -1154,6 +1156,8 @@ function App() {
           onShowAuth={handleShowAuth}
           onSignOut={handleSignOut}
           isSyncing={cloudSync.isSyncing}
+          isFullscreen={isFullscreen}
+          onToggleFullscreen={toggleFullscreen}
           isFullscreen={isFullscreen}
           onToggleFullscreen={toggleFullscreen}
         />
