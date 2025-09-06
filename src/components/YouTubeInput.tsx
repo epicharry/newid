@@ -212,35 +212,6 @@ export function YouTubeInput({
         </div>
 
         {/* API Key Input */}
-        <div className={`${themeClasses.card} border rounded-2xl p-6 mb-6`}>
-          <h3 className={`text-lg font-semibold ${themeClasses.text} mb-4`}>
-            YouTube API Configuration
-          </h3>
-          <div className="space-y-4">
-            <div className="relative">
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => onApiKeyChange(e.target.value)}
-                placeholder="Enter your YouTube Data API v3 key..."
-                className={`w-full px-4 py-4 rounded-xl ${themeClasses.input} ${themeClasses.text} placeholder-gray-400 border focus:outline-none focus:ring-2 focus:ring-red-400/50 transition-all duration-200`}
-              />
-            </div>
-            <p className={`text-sm ${themeClasses.subtext}`}>
-              Get your API key from the{' '}
-              <a
-                href="https://console.cloud.google.com/apis/credentials"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-red-500 hover:text-red-600 underline"
-              >
-                Google Cloud Console
-              </a>
-              {' '}and make sure YouTube Data API v3 is enabled.
-            </p>
-          </div>
-        </div>
-
         {/* Search Form */}
         <div className={`${themeClasses.card} border rounded-2xl p-6 mb-6`}>
           <div className="space-y-6">
@@ -261,7 +232,7 @@ export function YouTubeInput({
               </div>
               <button
                 type="submit"
-                disabled={!searchQuery.trim() || isSearching || !apiKey.trim()}
+                disabled={!searchQuery.trim() || isSearching}
                 className={`w-full py-3 px-6 rounded-xl ${themeClasses.button} text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2`}
               >
                 {isSearching ? (
@@ -272,7 +243,7 @@ export function YouTubeInput({
                 ) : (
                   <>
                     <Search className="w-4 h-4" />
-                    {!apiKey.trim() ? 'Enter API Key First' : 'Search Videos'}
+                    Search Videos
                   </>
                 )}
               </button>
@@ -296,7 +267,7 @@ export function YouTubeInput({
                 </div>
                 <button
                   onClick={handleAddFromUrls}
-                  disabled={!urlInput.trim() || isSearching || !apiKey.trim()}
+                  disabled={!urlInput.trim() || isSearching}
                   className={`w-full py-3 px-6 rounded-xl ${themeClasses.button} text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 flex items-center justify-center gap-2`}
                 >
                   {isSearching ? (
@@ -307,7 +278,7 @@ export function YouTubeInput({
                   ) : (
                     <>
                       <Plus className="w-4 h-4" />
-                      {!apiKey.trim() ? 'Enter API Key First' : 'Add Videos from URLs'}
+                      Add Videos from URLs
                     </>
                   )}
                 </button>
