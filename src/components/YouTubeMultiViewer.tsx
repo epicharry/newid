@@ -310,42 +310,63 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
   };
 
   const initializePlayer = (videoId: string, element: HTMLDivElement) => {
-    if (!plyrLoaded || !(window as any).Plyr) return;
-
-    // Create video element for Plyr YouTube provider
-    const videoElement = document.createElement('div');
-    videoElement.setAttribute('data-plyr-provider', 'youtube');
-    videoElement.setAttribute('data-plyr-embed-id', videoId);
+    // Check if we're in Electron
+    const isElectron = typeof window !== 'undefined' && window.process && window.process.type;
     
-    element.innerHTML = '';
-    element.appendChild(videoElement);
+    if (isElectron) {
+      // Use webview for Electron
+      const webview = document.createElement('webview');
+      webview.src = `https://www.youtube.com/embed/${videoId}?autoplay=0&controls=1&rel=0&showinfo=0&modestbranding=1`;
+      webview.style.width = '100%';
+      webview.style.height = '100%';
+      webview.setAttribute('allowfullscreen', 'true');
+      webview.setAttribute('webpreferences', 'allowRunningInsecureContent');
+      
+      element.innerHTML = '';
+      element.appendChild(webview);
+      
+      // Store webview reference instead of Plyr player
+      setVideoPanels(prev => prev.map(panel => 
+        panel.id === videoId ? { ...panel, player: { webview, type: 'webview' } } : panel
+      ));
+    } else {
+      // Use Plyr for web browsers
+      if (!plyrLoaded || !(window as any).Plyr) return;
 
-    const player = new (window as any).Plyr(videoElement, {
-      controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'],
-      settings: ['quality', 'speed'],
-      volume: globalPlayerState.volume / 100,
-      muted: globalPlayerState.isMuted,
-      speed: { selected: globalPlayerState.playbackRate },
-      quality: { default: globalPlayerState.quality, options: ['hd2160', 'hd1440', 'hd1080', 'hd720', 'large', 'medium', 'small'] },
-      keyboard: { focused: false, global: false },
-      clickToPlay: true,
-      youtube: {
-        noCookie: false,
-        rel: 0,
-        showinfo: 0,
-        iv_load_policy: 3,
-        modestbranding: 1,
-        hd: 1,
-        vq: globalPlayerState.quality,
-        start: globalPlayerState.startTime,
-        loop: globalPlayerState.loop ? 1 : 0,
-        playlist: globalPlayerState.loop ? videoId : undefined,
-      },
-    });
+      const videoElement = document.createElement('div');
+      videoElement.setAttribute('data-plyr-provider', 'youtube');
+      videoElement.setAttribute('data-plyr-embed-id', videoId);
+      
+      element.innerHTML = '';
+      element.appendChild(videoElement);
 
-    setVideoPanels(prev => prev.map(panel => 
-      panel.id === videoId ? { ...panel, player } : panel
-    ));
+      const player = new (window as any).Plyr(videoElement, {
+        controls: ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings', 'fullscreen'],
+        settings: ['quality', 'speed'],
+        volume: globalPlayerState.volume / 100,
+        muted: globalPlayerState.isMuted,
+        speed: { selected: globalPlayerState.playbackRate },
+        quality: { default: globalPlayerState.quality, options: ['hd2160', 'hd1440', 'hd1080', 'hd720', 'large', 'medium', 'small'] },
+        keyboard: { focused: false, global: false },
+        clickToPlay: true,
+        youtube: {
+          noCookie: false,
+          rel: 0,
+          showinfo: 0,
+          iv_load_policy: 3,
+          modestbranding: 1,
+          hd: 1,
+          vq: globalPlayerState.quality,
+          start: globalPlayerState.startTime,
+          loop: globalPlayerState.loop ? 1 : 0,
+          playlist: globalPlayerState.loop ? videoId : undefined,
+        },
+      });
+
+      setVideoPanels(prev => prev.map(panel => 
+        panel.id === videoId ? { ...panel, player: { plyr: player, type: 'plyr' } } : panel
+      ));
+    }
   };
 
   const handleGlobalPlayPause = () => {
