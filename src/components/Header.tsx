@@ -39,6 +39,8 @@ interface HeaderProps {
   onShowAuth?: () => void;
   onSignOut?: () => void;
   isSyncing?: boolean;
+  isFullscreen?: boolean;
+  onToggleFullscreen?: () => void;
 }
 
 export function Header({ 
@@ -74,7 +76,9 @@ export function Header({
   user,
   onShowAuth,
   onSignOut,
-  isSyncing = false
+  isSyncing = false,
+  isFullscreen = false,
+  onToggleFullscreen
 }: HeaderProps) {
   const [showSearchInput, setShowSearchInput] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
