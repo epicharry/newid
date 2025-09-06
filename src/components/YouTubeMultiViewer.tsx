@@ -155,7 +155,9 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
   // Check initial fullscreen state
   useEffect(() => {
     if (isElectron) {
-      window.electronAPI.isFullscreen().then(setIsElectronFullscreen);
+      window.electronAPI?.isFullscreen().then(setIsElectronFullscreen).catch(() => {
+        setIsElectronFullscreen(false);
+      });
     }
   }, [isElectron]);
 
@@ -361,7 +363,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
   const toggleElectronFullscreen = async () => {
     if (isElectron) {
       try {
-        const newFullscreenState = await window.electronAPI.toggleFullscreen();
+        const newFullscreenState = await window.electronAPI?.toggleFullscreen();
         setIsElectronFullscreen(newFullscreenState);
       } catch (error) {
         console.error('Electron fullscreen error:', error);

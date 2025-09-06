@@ -203,15 +203,22 @@ function createWindow() {
 // IPC handlers for fullscreen
 ipcMain.handle('toggle-fullscreen', () => {
   if (mainWindow) {
-    const isFullscreen = mainWindow.isFullScreen();
-    mainWindow.setFullScreen(!isFullscreen);
-    return !isFullscreen;
+    const isKiosk = mainWindow.isKiosk();
+    if (isKiosk) {
+      // Exit kiosk mode
+      mainWindow.setKiosk(false);
+      return false;
+    } else {
+      // Enter kiosk mode (true fullscreen)
+      mainWindow.setKiosk(true);
+      return true;
+    }
   }
   return false;
 });
 
 ipcMain.handle('is-fullscreen', () => {
-  return mainWindow ? mainWindow.isFullScreen() : false;
+  return mainWindow ? mainWindow.isKiosk() : false;
 });
 
 // App event listeners
