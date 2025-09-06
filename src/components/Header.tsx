@@ -41,51 +41,6 @@ interface HeaderProps {
   isSyncing?: boolean;
 }
 
-function ElectronFullscreenButton({ theme }: { theme: ThemeMode }) {
-  const [isFullscreen, setIsFullscreen] = React.useState(false);
-
-  React.useEffect(() => {
-    if (typeof window !== 'undefined' && window.electronAPI) {
-      // Check initial fullscreen state
-      window.electronAPI.isFullscreen().then(setIsFullscreen);
-      
-      // Listen for fullscreen changes
-      const handleFullscreenChange = (fullscreen: boolean) => {
-        setIsFullscreen(fullscreen);
-      };
-      
-      window.electronAPI.onFullscreenChange(handleFullscreenChange);
-    }
-  }, []);
-
-  const getThemeClasses = () => {
-    switch (theme) {
-      case 'light':
-        return 'text-gray-600 hover:text-blue-600 hover:bg-blue-50';
-      case 'dark':
-        return 'text-gray-400 hover:text-blue-400 hover:bg-gray-700';
-      default:
-        return 'text-gray-500 hover:text-blue-500 hover:bg-gray-100';
-    }
-  };
-
-  const handleToggleFullscreen = () => {
-    if (typeof window !== 'undefined' && window.electronAPI) {
-      window.electronAPI.toggleFullscreen();
-    }
-  };
-
-  return (
-    <button
-      onClick={handleToggleFullscreen}
-      className={`p-2 rounded-xl ${getThemeClasses()} transition-all duration-200 hover:scale-110`}
-      title={isFullscreen ? 'Exit Fullscreen' : 'Enter Fullscreen'}
-    >
-      {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
-    </button>
-  );
-}
-
 export function Header({ 
   theme, 
   onThemeChange, 
@@ -523,6 +478,9 @@ export function Header({
               )}
             </button>
           )}
+          
+          {/* Electron Fullscreen Button */}
+          <ElectronFullscreenButton theme={theme} />
           
           <ThemeToggle theme={theme} onThemeChange={onThemeChange} />
         </div>
