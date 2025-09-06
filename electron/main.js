@@ -17,9 +17,8 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      webSecurity: true,
+      webSecurity: false, // Allow YouTube videos in development
       allowRunningInsecureContent: false,
-      webSecurity: false, // Allow cross-origin requests for YouTube
       experimentalFeatures: true,
       plugins: true,
       allowDisplayingInsecureContent: true,
