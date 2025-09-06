@@ -64,7 +64,6 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
   const [stretchToFill, setStretchToFill] = useState(false);
   const [plyrLoaded, setPlyrLoaded] = useState(false);
   const [maxZIndex, setMaxZIndex] = useState(10);
-  const [isElectronFullscreen, setIsElectronFullscreen] = useState(false);
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
     panelId: string | null;
@@ -93,6 +92,9 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
   });
   
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Electron fullscreen state
+  const [isElectronFullscreen, setIsElectronFullscreen] = useState(false);
 
   // Load Plyr
   useEffect(() => {
@@ -908,7 +910,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
       {/* Video Container */}
       <div 
         ref={containerRef}
-        className={`relative w-full ${isFullscreen ? 'h-screen' : 'h-screen'} overflow-hidden`}
+        className={`relative w-full h-screen overflow-hidden`}
         style={{ height: 'calc(100vh - 120px)' }}
       >
         {videoPanels.map((panel) => (
