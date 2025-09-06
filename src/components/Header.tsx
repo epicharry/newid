@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, Star, Heart, Sparkles, Flame, Clock, Award, TrendingUp, Zap, Image, Video, Images, Folder, Shield, Search, X, Globe, User, LogOut } from 'lucide-react';
+import { ArrowLeft, Star, Heart, Sparkles, Flame, Clock, Award, TrendingUp, Zap, Image, Video, Images, Folder, Shield, Search, X, Globe, User, LogOut, Maximize, Minimize } from 'lucide-react';
 import { Rss } from 'lucide-react';
 import { ThemeToggle } from './ThemeToggle';
 import { ThemeMode, MediaSource, SubredditInfo, RedditSortType, MediaFilter } from '../types/app';
@@ -280,6 +280,11 @@ export function Header({
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Electron Fullscreen Button */}
+          {typeof window !== 'undefined' && window.electronAPI && (
+            <ElectronFullscreenButton theme={theme} />
+          )}
+
           {/* Subreddit Search Input */}
           {showSearchInput && currentSubreddit && onSubredditSearch && (
             <form onSubmit={handleSearchSubmit} className="flex items-center gap-2">
