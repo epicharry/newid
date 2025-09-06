@@ -5,6 +5,39 @@ const isDev = process.env.NODE_ENV === 'development';
 // Keep a global reference of the window object
 let mainWindow;
 
+// Function to clear all cache and storage
+async function clearAppCache() {
+  if (mainWindow && mainWindow.webContents) {
+    const session = mainWindow.webContents.session;
+    
+    try {
+      // Clear all cache
+      await session.clearCache();
+      
+      // Clear all storage data
+      await session.clearStorageData({
+        storages: [
+          'appcache',
+          'cookies',
+          'filesystem',
+          'indexdb',
+          'localstorage',
+          'shadercache',
+          'websql',
+          'serviceworkers',
+          'cachestorage'
+        ]
+      });
+      
+      console.log('✅ App cache and storage cleared successfully');
+      
+      // Reload the window to apply changes
+      mainWindow.reload();
+    } catch (error) {
+      console.error('❌ Error clearing cache:', error);
+    }
+  }
+}
 function createWindow() {
   // Create the browser window
   mainWindow = new BrowserWindow({
@@ -81,6 +114,15 @@ function createWindow() {
     // Focus on window
     if (isDev) {
       mainWindow.webContents.openDevTools();
+      
+      // Add keyboard shortcut for cache clearing in development
+      mainWindow.webContents.on('before-input-event', (event, input) => {
+        // Ctrl+Shift+R or Cmd+Shift+R to clear cache and reload
+        if ((input.control || input.meta) && input.shift && input.key.toLowerCase() === 'r') {
+          console.log('🧹 Clearing cache and reloading...');
+          clearAppCache();
+        }
+      });
     }
   });
 
@@ -139,6 +181,16 @@ function createWindow() {
 
 // App event listeners
 app.whenReady().then(() => {
+  // Clear cache on startup in development
+  if (isDev) {
+    console.log('🧹 Development mode: Clearing cache on startup...');
+    setTimeout(() => {
+      if (mainWindow) {
+        clearAppCache();
+      }
+    }, 2000); // Wait 2 seconds for window to be ready
+  }
+  
   createWindow();
   
   // Disable the application menu completely
