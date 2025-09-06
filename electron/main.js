@@ -193,9 +193,34 @@ function createWindow() {
   mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
     const parsedUrl = new URL(navigationUrl);
     
-    if (parsedUrl.origin !== 'http://localhost:5173' && parsedUrl.origin !== 'file://') {
+    if (parsedUrl.origin !== 'http://localhost:5173' && !navigationUrl.startsWith('file://')) {
       event.preventDefault();
       shell.openExternal(navigationUrl);
+    }
+  });
+
+  // Add error handling for the renderer process
+  mainWindow.webContents.on('crashed', (event, killed) => {
+    console.error('Renderer process crashed:', { killed });
+  });
+
+  mainWindow.webContents.on('unresponsive', () => {
+    console.error('Renderer process became unresponsive');
+  });
+
+  mainWindow.webContents.on('responsive', () => {
+    console.log('Renderer process became responsive again');
+  });
+
+  // Log when page finishes loading
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log('✅ Page loaded successfully in Electron');
+  });
+
+  // Log any console errors from the renderer
+  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
+    if (level >= 2) { // Error level
+      console.error(`Renderer Error: ${message} (${sourceId}:${line})`);
     }
   });
 }

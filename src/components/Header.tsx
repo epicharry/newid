@@ -8,6 +8,12 @@ import { UserProfile } from '../lib/supabase';
 // Electron Fullscreen Button Component
 function ElectronFullscreenButton({ theme }: { theme: ThemeMode }) {
   const [isFullscreen, setIsFullscreen] = React.useState(false);
+  const [isElectron, setIsElectron] = React.useState(false);
+
+  // Check if we're in Electron environment
+  React.useEffect(() => {
+    setIsElectron(typeof window !== 'undefined' && !!window.electronAPI);
+  }, []);
 
   const getThemeClasses = () => {
     switch (theme) {
@@ -30,27 +36,28 @@ function ElectronFullscreenButton({ theme }: { theme: ThemeMode }) {
   };
 
   React.useEffect(() => {
-    if (typeof window !== 'undefined' && window.electronAPI) {
+    if (isElectron && window.electronAPI) {
       // Check initial fullscreen state
-      window.electronAPI.isFullscreen().then(setIsFullscreen);
-
-      // Listen for fullscreen changes
-      const handleFullscreenChange = (fullscreen: boolean) => {
-        setIsFullscreen(fullscreen);
-      };
-
-      window.electronAPI.onFullscreenChange(handleFullscreenChange);
+      window.electronAPI.isFullscreen()
+        .then(setIsFullscreen)
+        .catch((error) => {
+          console.warn('Failed to get fullscreen state:', error);
+        });
     }
-  }, []);
+  }, [isElectron]);
 
   const handleToggleFullscreen = () => {
-    if (typeof window !== 'undefined' && window.electronAPI) {
-      window.electronAPI.toggleFullscreen();
+    if (isElectron && window.electronAPI) {
+      window.electronAPI.toggleFullscreen()
+        .then(setIsFullscreen)
+        .catch((error) => {
+          console.warn('Failed to toggle fullscreen:', error);
+        });
     }
   };
 
   // Only show in Electron environment
-  if (typeof window === 'undefined' || !window.electronAPI) {
+  if (!isElectron) {
     return null;
   }
 

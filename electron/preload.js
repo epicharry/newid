@@ -9,9 +9,22 @@ contextBridge.exposeInMainWorld('electronAPI', {
   versions: process.versions,
   toggleFullscreen: () => ipcRenderer.invoke('toggle-fullscreen'),
   isFullscreen: () => ipcRenderer.invoke('is-fullscreen'),
+  // Add error reporting
+  reportError: (error) => {
+    console.error('Renderer process error:', error);
+  }
 });
 
 // Prevent the renderer process from accessing Node.js
 delete window.require;
 delete window.exports;
 delete window.module;
+
+// Add global error handler for the renderer process
+window.addEventListener('error', (event) => {
+  console.error('Global error in renderer:', event.error);
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  console.error('Unhandled promise rejection in renderer:', event.reason);
+});
