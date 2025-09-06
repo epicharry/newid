@@ -387,7 +387,7 @@ function App() {
     setNextPageToken(null);
     setHasMore(true);
     setMediaItems([]);
-    loadSearchResults(query, currentSubreddit, true);
+    loadSearchResults(query, currentSubreddit, undefined, true);
   };
   const handleTagsSelect = (tags: string) => {
     setCurrentTags(tags);
@@ -505,23 +505,29 @@ function App() {
   const handleLoadMore = async () => {
     return new Promise<void>((resolve) => {
       const originalLoadMore = () => {
-    if (hasMore) {
-      if (settings.selectedSource === 'reddit' && nextPageToken) {
-        if (isSearchMode && currentSearchQuery) {
-          if (currentSubreddit) {
-            // Subreddit-specific search
-            loadSearchResults(currentSearchQuery, currentSubreddit, undefined, false);
-          } else {
-            // Global Reddit search
-            loadSearchResults(currentSearchQuery, undefined, currentSearchSort, false);
+        if (hasMore) {
+          if (settings.selectedSource === 'reddit' && nextPageToken) {
+            if (isSearchMode && currentSearchQuery) {
+              if (currentSubreddit) {
+                // Subreddit-specific search
+                loadSearchResults(currentSearchQuery, currentSubreddit, undefined, false);
+              } else {
+                // Global Reddit search
+                loadSearchResults(currentSearchQuery, undefined, currentSearchSort, false);
+              }
+            } else if (currentSubreddit) {
+              loadSubreddit(currentSubreddit, currentSort, false);
+            }
+          } else if (settings.selectedSource === 'rule34' && currentPid !== null) {
+            loadRule34Posts(currentTags, currentPid, false);
           }
-        } else if (currentSubreddit) {
-          loadSubreddit(currentSubreddit, currentSort, false);
         }
-      } else if (settings.selectedSource === 'rule34' && currentPid !== null) {
-        loadRule34Posts(currentTags, currentPid, false);
-      }
-    }
+      };
+
+      // Small delay to ensure the promise resolves after the state updates
+      setTimeout(originalLoadMore, 0);
+      resolve();
+    });
   };
 
   const handleToggleFavorites = () => {
@@ -665,13 +671,13 @@ function App() {
       // Local storage fallback
       setSettings(prev => ({
         ...prev,
-                loadSearchResults(currentSearchQuery, currentSubreddit, undefined, false).then(resolve);
+        mediaFolders: prev.mediaFolders.map(folder => {
           if (folder.id !== folderId) return folder;
           
-                loadSearchResults(currentSearchQuery, undefined, currentSearchSort, false).then(resolve);
+          const newMediaItems = [...folder.mediaItems];
           mediaItemsToAdd.forEach(mediaItem => {
             if (!newMediaItems.some(item => item.id === mediaItem.id)) {
-              loadSubreddit(currentSubreddit, currentSort, false).then(resolve);
+              newMediaItems.push(mediaItem);
             }
           });
           
@@ -755,12 +761,8 @@ function App() {
         const newMediaItems = [...folder.mediaItems];
         mediaItemsToAdd.forEach(mediaItem => {
           if (!newMediaItems.some(item => item.id === mediaItem.id)) {
-            loadRule34Posts(currentTags, currentPid, false).then(resolve);
-          } else {
-            resolve();
+            newMediaItems.push(mediaItem);
           }
-        } else {
-          resolve();
         });
         
         return { ...folder, mediaItems: newMediaItems };
@@ -806,11 +808,6 @@ function App() {
         } else {
           newSet.add(mediaId);
         }
-      };
-      
-      // Small delay to ensure the promise resolves after the state updates
-      setTimeout(originalLoadMore, 0);
-    });
         return newSet;
       });
     } else {
