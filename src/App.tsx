@@ -502,7 +502,9 @@ function App() {
     }
   };
 
-  const handleLoadMore = () => {
+  const handleLoadMore = async () => {
+    return new Promise<void>((resolve) => {
+      const originalLoadMore = () => {
     if (hasMore) {
       if (settings.selectedSource === 'reddit' && nextPageToken) {
         if (isSearchMode && currentSearchQuery) {
@@ -663,13 +665,13 @@ function App() {
       // Local storage fallback
       setSettings(prev => ({
         ...prev,
-        mediaFolders: prev.mediaFolders.map(folder => {
+                loadSearchResults(currentSearchQuery, currentSubreddit, undefined, false).then(resolve);
           if (folder.id !== folderId) return folder;
           
-          const newMediaItems = [...folder.mediaItems];
+                loadSearchResults(currentSearchQuery, undefined, currentSearchSort, false).then(resolve);
           mediaItemsToAdd.forEach(mediaItem => {
             if (!newMediaItems.some(item => item.id === mediaItem.id)) {
-              newMediaItems.push(mediaItem);
+              loadSubreddit(currentSubreddit, currentSort, false).then(resolve);
             }
           });
           
@@ -753,8 +755,12 @@ function App() {
         const newMediaItems = [...folder.mediaItems];
         mediaItemsToAdd.forEach(mediaItem => {
           if (!newMediaItems.some(item => item.id === mediaItem.id)) {
-            newMediaItems.push(mediaItem);
+            loadRule34Posts(currentTags, currentPid, false).then(resolve);
+          } else {
+            resolve();
           }
+        } else {
+          resolve();
         });
         
         return { ...folder, mediaItems: newMediaItems };
@@ -800,6 +806,11 @@ function App() {
         } else {
           newSet.add(mediaId);
         }
+      };
+      
+      // Small delay to ensure the promise resolves after the state updates
+      setTimeout(originalLoadMore, 0);
+    });
         return newSet;
       });
     } else {

@@ -39,6 +39,7 @@ export function MediaGrid({
     position: ContextMenuPosition;
     mediaId: string;
   } | null>(null);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const getThemeClasses = () => {
     switch (theme) {
@@ -87,6 +88,43 @@ export function MediaGrid({
     setContextMenu(null);
   };
 
+  const handleLoadMore = async () => {
+    if (!onLoadMore || isLoading || isLoadingMore) return;
+    
+    // Store current scroll position and the last visible item
+    const scrollPosition = window.scrollY;
+    const lastItemElement = document.querySelector('[data-media-item]:last-child');
+    const lastItemId = lastItemElement?.getAttribute('data-media-id');
+    
+    setIsLoadingMore(true);
+    
+    try {
+      await onLoadMore();
+      
+      // After new items are loaded, restore scroll position
+      // We need to wait for the DOM to update
+      setTimeout(() => {
+        if (lastItemId) {
+          // Find the element that was previously the last item
+          const previousLastItem = document.querySelector(`[data-media-id="${lastItemId}"]`);
+          if (previousLastItem) {
+            // Scroll to maintain the user's position relative to the previous last item
+            previousLastItem.scrollIntoView({ 
+              behavior: 'instant',
+              block: 'center'
+            });
+          }
+        } else {
+          // Fallback: restore the exact scroll position
+          window.scrollTo(0, scrollPosition);
+        }
+        setIsLoadingMore(false);
+      }, 100);
+    } catch (error) {
+      console.error('Error loading more items:', error);
+      setIsLoadingMore(false);
+    }
+  };
   if (isLoading && items.length === 0) {
     return (
       <div className={`min-h-screen ${themeClasses.bg} p-6`}>
@@ -109,6 +147,8 @@ export function MediaGrid({
         {items.map((item, index) => (
           <div
             key={item.id}
+            data-media-item
+            data-media-id={item.id}
             className={`group cursor-pointer transition-all duration-300 hover:scale-105 break-inside-avoid mb-4 ${
               selectedMediaIds.has(item.id) ? 'ring-4 ring-blue-400 ring-opacity-70' : ''
             }`}
@@ -178,11 +218,11 @@ export function MediaGrid({
       {hasMore && (
         <div className="flex justify-center mt-12 mb-8">
           <button
-            onClick={onLoadMore}
-            disabled={isLoading}
+            onClick={handleLoadMore}
+            disabled={isLoading || isLoadingMore}
             className={`${themeClasses.button} text-white px-8 py-4 rounded-2xl font-semibold transition-all duration-300 hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2`}
           >
-            {isLoading ? (
+            {isLoading || isLoadingMore ? (
               <>
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white" />
                 Loading...
