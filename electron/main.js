@@ -17,8 +17,8 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      webSecurity: false, // Allow YouTube videos in development
-      allowRunningInsecureContent: false,
+      webSecurity: false, // Disable web security for YouTube
+      allowRunningInsecureContent: true,
       experimentalFeatures: true,
       plugins: true,
       allowDisplayingInsecureContent: true,
@@ -28,7 +28,8 @@ function createWindow() {
   });
 
   // Set user agent to mimic Chrome browser for YouTube compatibility
-  mainWindow.webContents.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+  const chromeUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+  mainWindow.webContents.setUserAgent(chromeUserAgent);
 
   // Enable media playback features
   mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
@@ -46,6 +47,24 @@ function createWindow() {
       return true;
     }
     return false;
+  });
+
+  // Intercept requests to modify headers for YouTube
+  mainWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
+    // Add/modify headers to make requests look like they're coming from Chrome
+    details.requestHeaders['User-Agent'] = chromeUserAgent;
+    details.requestHeaders['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8';
+    details.requestHeaders['Accept-Language'] = 'en-US,en;q=0.9';
+    details.requestHeaders['Accept-Encoding'] = 'gzip, deflate, br';
+    details.requestHeaders['DNT'] = '1';
+    details.requestHeaders['Connection'] = 'keep-alive';
+    details.requestHeaders['Upgrade-Insecure-Requests'] = '1';
+    
+    // Remove Electron-specific headers
+    delete details.requestHeaders['Electron'];
+    delete details.requestHeaders['electron'];
+    
+    callback({ requestHeaders: details.requestHeaders });
   });
 
   // Load the app
@@ -68,11 +87,31 @@ function createWindow() {
   // Handle media permissions and autoplay
   mainWindow.webContents.on('did-finish-load', () => {
     mainWindow.webContents.executeJavaScript(`
+      // Override navigator properties to make it look more like Chrome
+      Object.defineProperty(navigator, 'userAgent', {
+        get: () => '${chromeUserAgent}'
+      });
+      
       // Enable autoplay for YouTube videos
       navigator.mediaDevices = navigator.mediaDevices || {};
       navigator.mediaDevices.getUserMedia = navigator.mediaDevices.getUserMedia || function() {
         return Promise.resolve({});
       };
+      
+      // Override webdriver property that YouTube might check
+      Object.defineProperty(navigator, 'webdriver', {
+        get: () => undefined
+      });
+      
+      // Add Chrome-specific properties
+      Object.defineProperty(navigator, 'plugins', {
+        get: () => [1, 2, 3, 4, 5] // Fake plugins array
+      });
+      
+      // Override platform if needed
+      Object.defineProperty(navigator, 'platform', {
+        get: () => 'Win32'
+      });
     `);
   });
 
