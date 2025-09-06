@@ -1,5 +1,4 @@
 const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
-const { ipcMain } = require('electron');
 const path = require('path');
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -51,7 +50,6 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js'),
       enableRemoteModule: false,
       webSecurity: false, // Allow cross-origin requests for YouTube
       allowRunningInsecureContent: true,
@@ -193,58 +191,12 @@ function createWindow() {
   mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
     const parsedUrl = new URL(navigationUrl);
     
-    if (parsedUrl.origin !== 'http://localhost:5173' && !navigationUrl.startsWith('file://')) {
+    if (parsedUrl.origin !== 'http://localhost:5173' && parsedUrl.origin !== 'file://') {
       event.preventDefault();
       shell.openExternal(navigationUrl);
     }
   });
-
-  // Add error handling for the renderer process
-  mainWindow.webContents.on('crashed', (event, killed) => {
-    console.error('Renderer process crashed:', { killed });
-  });
-
-  mainWindow.webContents.on('unresponsive', () => {
-    console.error('Renderer process became unresponsive');
-  });
-
-  mainWindow.webContents.on('responsive', () => {
-    console.log('Renderer process became responsive again');
-  });
-
-  // Log when page finishes loading
-  mainWindow.webContents.on('did-finish-load', () => {
-    console.log('✅ Page loaded successfully in Electron');
-  });
-
-  // Log any console errors from the renderer
-  mainWindow.webContents.on('console-message', (event, level, message, line, sourceId) => {
-    if (level >= 2) { // Error level
-      console.error(`Renderer Error: ${message} (${sourceId}:${line})`);
-    }
-  });
 }
-
-// IPC handlers for fullscreen
-ipcMain.handle('toggle-fullscreen', () => {
-  if (mainWindow) {
-    const isKiosk = mainWindow.isKiosk();
-    if (isKiosk) {
-      // Exit kiosk mode
-      mainWindow.setKiosk(false);
-      return false;
-    } else {
-      // Enter kiosk mode (true fullscreen)
-      mainWindow.setKiosk(true);
-      return true;
-    }
-  }
-  return false;
-});
-
-ipcMain.handle('is-fullscreen', () => {
-  return mainWindow ? mainWindow.isKiosk() : false;
-});
 
 // App event listeners
 app.whenReady().then(() => {
