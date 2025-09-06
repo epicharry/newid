@@ -1100,8 +1100,6 @@ function App() {
           isSyncing={cloudSync.isSyncing}
           isFullscreen={isFullscreen}
           onToggleFullscreen={toggleFullscreen}
-          isFullscreen={isFullscreen}
-          onToggleFullscreen={toggleFullscreen}
         />
         <YouTubeInput
           onVideosSelect={handleWatchYouTubeVideos}
@@ -1157,7 +1155,7 @@ function App() {
           onSignOut={handleSignOut}
           isSyncing={cloudSync.isSyncing}
           isFullscreen={isFullscreen}
-          onToggleFullscreen={toggleFullscreen} />
+          onToggleFullscreen={toggleFullscreen}
         />
         <div className="flex items-center justify-center min-h-[60vh] p-6">
           <div className={`${themeClasses.card} border rounded-2xl p-8 max-w-md w-full text-center`}>
