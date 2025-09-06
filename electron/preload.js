@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Add any APIs you need to expose to the renderer process here
   platform: process.platform,
   versions: process.versions,
+  toggleFullscreen: () => ipcRenderer.invoke('toggle-fullscreen'),
+  isFullscreen: () => ipcRenderer.invoke('is-fullscreen'),
 });
 
 // Prevent the renderer process from accessing Node.js

@@ -1,4 +1,5 @@
 const { app, BrowserWindow, Menu, shell, dialog } = require('electron');
+const { ipcMain } = require('electron');
 const path = require('path');
 const isDev = process.env.NODE_ENV === 'development';
 
@@ -50,6 +51,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
       enableRemoteModule: false,
       webSecurity: false, // Allow cross-origin requests for YouTube
       allowRunningInsecureContent: true,
@@ -197,6 +199,20 @@ function createWindow() {
     }
   });
 }
+
+// IPC handlers for fullscreen
+ipcMain.handle('toggle-fullscreen', () => {
+  if (mainWindow) {
+    const isFullscreen = mainWindow.isFullScreen();
+    mainWindow.setFullScreen(!isFullscreen);
+    return !isFullscreen;
+  }
+  return false;
+});
+
+ipcMain.handle('is-fullscreen', () => {
+  return mainWindow ? mainWindow.isFullScreen() : false;
+});
 
 // App event listeners
 app.whenReady().then(() => {

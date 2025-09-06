@@ -64,7 +64,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
   const [stretchToFill, setStretchToFill] = useState(false);
   const [plyrLoaded, setPlyrLoaded] = useState(false);
   const [maxZIndex, setMaxZIndex] = useState(10);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isElectronFullscreen, setIsElectronFullscreen] = useState(false);
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
     panelId: string | null;
@@ -149,22 +149,22 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     setMaxZIndex(10 + videos.length);
   }, [videos, plyrLoaded]);
 
+  // Check if running in Electron
+  const isElectron = typeof window !== 'undefined' && window.electronAPI;
+
+  // Check initial fullscreen state
+  useEffect(() => {
+    if (isElectron) {
+      window.electronAPI.isFullscreen().then(setIsElectronFullscreen);
+    }
+  }, [isElectron]);
+
   // Apply grid preset
   useEffect(() => {
     if (layoutMode === 'grid' && videoPanels.length > 0) {
       applyGridPreset(selectedPreset);
     }
   }, [selectedPreset, layoutMode, stretchToFill]);
-
-  // Fullscreen handling
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
-  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -186,11 +186,11 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
           break;
         case 'f':
           e.preventDefault();
-          toggleFullscreen();
+          toggleElectronFullscreen();
           break;
         case 'escape':
-          if (isFullscreen) {
-            exitFullscreen();
+          if (isElectronFullscreen) {
+            toggleElectronFullscreen();
           } else if (showSettings) {
             setShowSettings(false);
           } else if (videoPanels.some(p => p.isPiP)) {
@@ -205,7 +205,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [showUI, showSettings, isFullscreen]);
+  }, [showUI, showSettings, isElectronFullscreen]);
 
   // Mouse event handlers for dragging and resizing
   useEffect(() => {
@@ -358,25 +358,14 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     }));
   };
 
-  const toggleFullscreen = async () => {
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
+  const toggleElectronFullscreen = async () => {
+    if (isElectron) {
+      try {
+        const newFullscreenState = await window.electronAPI.toggleFullscreen();
+        setIsElectronFullscreen(newFullscreenState);
+      } catch (error) {
+        console.error('Electron fullscreen error:', error);
       }
-    } catch (error) {
-      console.error('Fullscreen error:', error);
-    }
-  };
-
-  const exitFullscreen = async () => {
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-      }
-    } catch (error) {
-      console.error('Exit fullscreen error:', error);
     }
   };
 
@@ -674,7 +663,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
   const themeClasses = getThemeClasses();
 
   return (
-    <div className={`${isFullscreen ? 'fixed inset-0' : 'min-h-screen'} ${themeClasses.bg} relative overflow-hidden`}>
+    <div className={`min-h-screen ${themeClasses.bg} relative overflow-hidden`}>
       {/* Control Bar */}
       <div className={`${showUI ? 'translate-y-0' : '-translate-y-full'} transition-transform duration-300 sticky top-0 z-50 ${themeClasses.controlBar} border-b p-4`}>
         <div className="max-w-7xl mx-auto">
@@ -770,11 +759,11 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
               </div>
 
               <button
-                onClick={toggleFullscreen}
-                className={`p-2 rounded-xl ${isFullscreen ? 'bg-blue-500 text-white' : themeClasses.secondaryButton} transition-all duration-200`}
+                onClick={toggleElectronFullscreen}
+                className={`p-2 rounded-xl ${isElectronFullscreen ? 'bg-blue-500 text-white' : themeClasses.secondaryButton} transition-all duration-200`}
                 title="F: Toggle Fullscreen"
               >
-                {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                {isElectronFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
               </button>
 
               <button
@@ -907,7 +896,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
       <div 
         ref={containerRef}
         className={`relative w-full ${isFullscreen ? 'h-screen' : 'h-screen'} overflow-hidden`}
-        style={{ height: isFullscreen ? '100vh' : 'calc(100vh - 120px)' }}
+        style={{ height: 'calc(100vh - 120px)' }}
       >
         {videoPanels.map((panel) => (
           <div
