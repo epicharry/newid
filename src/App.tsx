@@ -57,6 +57,25 @@ function App() {
     findSession,
   } = useViewerSessions();
 
+  // Get current session data - MUST be declared before any useEffect that references these variables
+  const activeSession = getActiveSession();
+  const isLoading = activeSession?.state.isLoading || false;
+  const error = activeSession?.state.error || null;
+  const hasMore = activeSession?.state.hasMore || false;
+  const selectedMediaIndex = activeSession?.state.selectedMediaIndex || null;
+  
+  // Derived state from active session
+  const currentSubreddit = activeSession?.data.subreddit || '';
+  const currentTags = activeSession?.data.tags || '';
+  const currentSearchQuery = activeSession?.data.searchQuery || '';
+  const isSearchMode = activeSession?.data.isSearchMode || false;
+  const currentSort = activeSession?.data.sort || settings.defaultSort;
+  const currentMediaFilter = activeSession?.data.mediaFilter || settings.mediaFilter;
+  const selectedYouTubeVideos = activeSession?.data.selectedVideos || settings.selectedYouTubeVideos;
+  const showYouTubeViewer = activeSession?.data.showViewer || false;
+
+  const mediaItems = activeSession?.state.mediaItems || [];
+
   // Auth and cloud sync
   const { user, userProfile, isLoading: authLoading, signIn, signUp, signOut, isAuthenticated } = useAuth();
   const cloudSync = useCloudSync();
@@ -191,42 +210,6 @@ function App() {
     syncLocalData();
   }, [isAuthenticated, user, shouldSyncLocalDataToCloud]);
 
-  // Show loading screen while checking authentication
-  if (authLoading) {
-    return (
-      <div className={`min-h-screen ${getThemeClasses().bg} flex items-center justify-center`}>
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
-          <p className={`${getThemeClasses().text} text-lg font-medium`}>
-            Checking authentication...
-          </p>
-          <p className={`${getThemeClasses().subtext} text-sm mt-2`}>
-            Restoring your session
-          </p>
-        </div>
-      </div>
-    );
-  }
-
-  // Get current session data
-  const activeSession = getActiveSession();
-  const isLoading = activeSession?.state.isLoading || false;
-  const error = activeSession?.state.error || null;
-  const hasMore = activeSession?.state.hasMore || false;
-  const selectedMediaIndex = activeSession?.state.selectedMediaIndex || null;
-  
-  // Derived state from active session
-  const currentSubreddit = activeSession?.data.subreddit || '';
-  const currentTags = activeSession?.data.tags || '';
-  const currentSearchQuery = activeSession?.data.searchQuery || '';
-  const isSearchMode = activeSession?.data.isSearchMode || false;
-  const currentSort = activeSession?.data.sort || settings.defaultSort;
-  const currentMediaFilter = activeSession?.data.mediaFilter || settings.mediaFilter;
-  const selectedYouTubeVideos = activeSession?.data.selectedVideos || settings.selectedYouTubeVideos;
-  const showYouTubeViewer = activeSession?.data.showViewer || false;
-
-  const mediaItems = activeSession?.state.mediaItems || [];
-
   // Filter media items based on current filter
   const filteredMediaItems = mediaItems.filter(item => {
     switch (currentMediaFilter) {
@@ -257,6 +240,23 @@ function App() {
   
   // Combine all available media items
   const allMediaItems = [...mediaItems, ...favoriteMediaItems, ...feedMediaItems];
+
+  // Show loading screen while checking authentication
+  if (authLoading) {
+    return (
+      <div className={`min-h-screen ${getThemeClasses().bg} flex items-center justify-center`}>
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-pink-500 mx-auto mb-4"></div>
+          <p className={`${getThemeClasses().text} text-lg font-medium`}>
+            Checking authentication...
+          </p>
+          <p className={`${getThemeClasses().subtext} text-sm mt-2`}>
+            Restoring your session
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Helper function to get or create session
   const getOrCreateSession = (
