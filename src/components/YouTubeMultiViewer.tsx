@@ -340,6 +340,10 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
         start: globalPlayerState.startTime,
         loop: globalPlayerState.loop ? 1 : 0,
         playlist: globalPlayerState.loop ? videoId : undefined,
+       origin: window.location.origin,
+       enablejsapi: 1,
+       playsinline: 1,
+       autoplay: 0,
       },
     });
 

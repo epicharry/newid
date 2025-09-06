@@ -19,9 +19,34 @@ function createWindow() {
       enableRemoteModule: false,
       webSecurity: true,
       allowRunningInsecureContent: false,
+      webSecurity: false, // Allow cross-origin requests for YouTube
+      experimentalFeatures: true,
+      plugins: true,
+      allowDisplayingInsecureContent: true,
     },
     titleBarStyle: 'default',
     show: false, // Don't show until ready
+  });
+
+  // Set user agent to mimic Chrome browser for YouTube compatibility
+  mainWindow.webContents.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
+  // Enable media playback features
+  mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media', 'geolocation', 'notifications', 'fullscreen'];
+    if (allowedPermissions.includes(permission)) {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
+
+  // Override permission checks for media
+  mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+    if (permission === 'media' || permission === 'camera' || permission === 'microphone') {
+      return true;
+    }
+    return false;
   });
 
   // Load the app
@@ -39,6 +64,17 @@ function createWindow() {
     if (isDev) {
       mainWindow.webContents.openDevTools();
     }
+  });
+
+  // Handle media permissions and autoplay
+  mainWindow.webContents.on('did-finish-load', () => {
+    mainWindow.webContents.executeJavaScript(`
+      // Enable autoplay for YouTube videos
+      navigator.mediaDevices = navigator.mediaDevices || {};
+      navigator.mediaDevices.getUserMedia = navigator.mediaDevices.getUserMedia || function() {
+        return Promise.resolve({});
+      };
+    `);
   });
 
   // Handle window closed
