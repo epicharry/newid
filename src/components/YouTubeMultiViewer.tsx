@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { YouTubeVideo } from '../types/app';
-import { Play, Pause, Volume2, VolumeX, X, Grid, List, RotateCcw, Settings, Eye, EyeOff, Maximize, SkipBack, SkipForward, Trash2 } from 'lucide-react';
+import { Play, Pause, Volume2, VolumeX, X, Grid, List, RotateCcw, Settings, Eye, EyeOff, Maximize, SkipBack, SkipForward, Trash2, Minimize } from 'lucide-react';
 
 interface YouTubeMultiViewerProps {
   videos: YouTubeVideo[];
@@ -64,6 +64,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
   const [stretchToFill, setStretchToFill] = useState(false);
   const [plyrLoaded, setPlyrLoaded] = useState(false);
   const [maxZIndex, setMaxZIndex] = useState(10);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
     panelId: string | null;
@@ -79,12 +80,16 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     isResizing: boolean;
     panelId: string | null;
     startPos: { x: number; y: number };
+    startPanelPos: { x: number; y: number };
     startSize: { width: number; height: number };
+    direction: 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw' | null;
   }>({
     isResizing: false,
     panelId: null,
     startPos: { x: 0, y: 0 },
+    startPanelPos: { x: 0, y: 0 },
     startSize: { width: 0, height: 0 },
+    direction: null,
   });
   
   const containerRef = useRef<HTMLDivElement>(null);
@@ -151,6 +156,16 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     }
   }, [selectedPreset, layoutMode, stretchToFill]);
 
+  // Fullscreen handling
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
@@ -169,8 +184,14 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
           e.preventDefault();
           setShowUI(!showUI);
           break;
+        case 'f':
+          e.preventDefault();
+          toggleFullscreen();
+          break;
         case 'escape':
-          if (showSettings) {
+          if (isFullscreen) {
+            exitFullscreen();
+          } else if (showSettings) {
             setShowSettings(false);
           } else if (videoPanels.some(p => p.isPiP)) {
             // Exit all PiP modes
@@ -184,9 +205,9 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [showUI, showSettings]);
+  }, [showUI, showSettings, isFullscreen]);
 
-  // Mouse event handlers for dragging
+  // Mouse event handlers for dragging and resizing
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (dragState.isDragging && dragState.panelId) {
@@ -206,27 +227,55 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
         ));
       }
       
-      if (resizeState.isResizing && resizeState.panelId) {
+      if (resizeState.isResizing && resizeState.panelId && resizeState.direction) {
         const deltaX = e.clientX - resizeState.startPos.x;
         const deltaY = e.clientY - resizeState.startPos.y;
         
-        setVideoPanels(prev => prev.map(panel => 
-          panel.id === resizeState.panelId 
-            ? {
-                ...panel,
-                size: {
-                  width: Math.max(200, resizeState.startSize.width + deltaX),
-                  height: Math.max(113, resizeState.startSize.height + deltaY),
-                }
-              }
-            : panel
-        ));
+        setVideoPanels(prev => prev.map(panel => {
+          if (panel.id !== resizeState.panelId) return panel;
+          
+          let newSize = { ...resizeState.startSize };
+          let newPosition = { ...resizeState.startPanelPos };
+          
+          const direction = resizeState.direction!;
+          
+          // Handle horizontal resizing
+          if (direction.includes('e')) {
+            newSize.width = Math.max(200, resizeState.startSize.width + deltaX);
+          } else if (direction.includes('w')) {
+            const newWidth = Math.max(200, resizeState.startSize.width - deltaX);
+            const widthDiff = newWidth - resizeState.startSize.width;
+            newSize.width = newWidth;
+            newPosition.x = Math.max(0, resizeState.startPanelPos.x - widthDiff);
+          }
+          
+          // Handle vertical resizing
+          if (direction.includes('s')) {
+            newSize.height = Math.max(113, resizeState.startSize.height + deltaY);
+          } else if (direction.includes('n')) {
+            const newHeight = Math.max(113, resizeState.startSize.height - deltaY);
+            const heightDiff = newHeight - resizeState.startSize.height;
+            newSize.height = newHeight;
+            newPosition.y = Math.max(0, resizeState.startPanelPos.y - heightDiff);
+          }
+          
+          return {
+            ...panel,
+            size: newSize,
+            position: newPosition,
+          };
+        }));
       }
     };
 
     const handleMouseUp = () => {
       setDragState(prev => ({ ...prev, isDragging: false, panelId: null }));
-      setResizeState(prev => ({ ...prev, isResizing: false, panelId: null }));
+      setResizeState(prev => ({ 
+        ...prev, 
+        isResizing: false, 
+        panelId: null, 
+        direction: null 
+      }));
     };
 
     if (dragState.isDragging || resizeState.isResizing) {
@@ -307,6 +356,28 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
         size
       };
     }));
+  };
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      } else {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.error('Fullscreen error:', error);
+    }
+  };
+
+  const exitFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      }
+    } catch (error) {
+      console.error('Exit fullscreen error:', error);
+    }
   };
 
   const initializePlayer = (videoId: string, element: HTMLDivElement) => {
@@ -514,8 +585,8 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     const panel = videoPanels.find(p => p.id === panelId);
     if (!panel) return;
     
-    // Allow dragging in free mode or when in PiP mode
-    if (layoutMode !== 'free' && !panel.isPiP) return;
+    // Allow dragging in free mode or when in PiP mode, or when UI is hidden
+    if (layoutMode !== 'free' && !panel.isPiP && showUI) return;
     
     // Don't drag if in browser PiP mode
     if (document.pictureInPictureElement) return;
@@ -531,7 +602,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     });
   };
 
-  const handleResizeStart = (e: React.MouseEvent, panelId: string) => {
+  const handleResizeStart = (e: React.MouseEvent, panelId: string, direction: 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'nw') => {
     e.stopPropagation();
     
     const panel = videoPanels.find(p => p.id === panelId);
@@ -541,7 +612,9 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
       isResizing: true,
       panelId,
       startPos: { x: e.clientX, y: e.clientY },
+      startPanelPos: panel.position,
       startSize: panel.size,
+      direction,
     });
   };
 
@@ -601,7 +674,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
   const themeClasses = getThemeClasses();
 
   return (
-    <div className={`min-h-screen ${themeClasses.bg} relative overflow-hidden`}>
+    <div className={`${isFullscreen ? 'fixed inset-0' : 'min-h-screen'} ${themeClasses.bg} relative overflow-hidden`}>
       {/* Control Bar */}
       <div className={`${showUI ? 'translate-y-0' : '-translate-y-full'} transition-transform duration-300 sticky top-0 z-50 ${themeClasses.controlBar} border-b p-4`}>
         <div className="max-w-7xl mx-auto">
@@ -619,7 +692,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
                   YouTube Multi-Viewer
                 </h1>
                 <p className={`text-sm ${themeClasses.subtext}`}>
-                  {videos.length} video{videos.length !== 1 ? 's' : ''} • Press U to toggle UI
+                  {videos.length} video{videos.length !== 1 ? 's' : ''}
                 </p>
               </div>
             </div>
@@ -630,7 +703,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
                 <button
                   onClick={handleRestart}
                   className={`p-2 rounded-xl ${themeClasses.secondaryButton} transition-all duration-200`}
-                  title="Restart All (to start time)"
+                  title="Restart All"
                 >
                   <RotateCcw className="w-4 h-4" />
                 </button>
@@ -638,7 +711,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
                 <button
                   onClick={handleGlobalPlayPause}
                   className={`p-2 rounded-xl ${themeClasses.button} transition-all duration-200`}
-                  title="Space: Play/Pause All"
+                  title="Play/Pause All"
                 >
                   {globalPlayerState.isPlaying ? (
                     <Pause className="w-4 h-4" />
@@ -650,7 +723,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
                 <button
                   onClick={handleGlobalMute}
                   className={`p-2 rounded-xl ${themeClasses.secondaryButton} transition-all duration-200`}
-                  title="M: Mute/Unmute All"
+                  title="Mute/Unmute All"
                 >
                   {globalPlayerState.isMuted ? (
                     <VolumeX className="w-4 h-4" />
@@ -695,6 +768,14 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
                   <Maximize className="w-4 h-4" />
                 </button>
               </div>
+
+              <button
+                onClick={toggleFullscreen}
+                className={`p-2 rounded-xl ${isFullscreen ? 'bg-blue-500 text-white' : themeClasses.secondaryButton} transition-all duration-200`}
+                title="F: Toggle Fullscreen"
+              >
+                {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+              </button>
 
               <button
                 onClick={() => setShowSettings(!showSettings)}
@@ -825,15 +906,13 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
       {/* Video Container */}
       <div 
         ref={containerRef}
-        className={`relative w-full h-screen ${showUI ? 'overflow-hidden' : 'overflow-visible'}`}
-        style={{ height: 'calc(100vh - 120px)' }}
+        className={`relative w-full ${isFullscreen ? 'h-screen' : 'h-screen'} overflow-hidden`}
+        style={{ height: isFullscreen ? '100vh' : 'calc(100vh - 120px)' }}
       >
         {videoPanels.map((panel) => (
           <div
             key={panel.id}
-            className={`${panel.isPiP || !showUI ? 'fixed' : 'absolute'} ${themeClasses.panel} border rounded-2xl overflow-hidden shadow-2xl ${
-              (layoutMode === 'free' || panel.isPiP) ? 'cursor-move' : ''
-            }`}
+            className={`${panel.isPiP || !showUI ? 'fixed' : 'absolute'} ${themeClasses.panel} border rounded-2xl overflow-hidden shadow-2xl cursor-move`}
             style={{ 
               left: panel.position.x,
               top: panel.position.y,
@@ -844,43 +923,45 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
             }}
             onClick={() => bringToFront(panel.id)}
           >
-            {/* Invisible Drag Handle - only visible on hover when UI is shown */}
-            {showUI && (
-              <div 
-                className={`absolute top-0 left-0 right-0 h-8 bg-black/20 opacity-0 hover:opacity-100 transition-opacity cursor-move z-10 flex items-center justify-between px-3`}
-                onMouseDown={(e) => handleDragStart(e, panel.id)}
-              >
-                <span className={`text-xs font-medium text-white truncate flex-1`}>
-                  {panel.video.title}
-                </span>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleTogglePiP(panel.id);
-                    }}
-                    className={`p-1 rounded transition-colors ${
-                      panel.isPiP 
-                        ? 'bg-blue-500 text-white' 
-                        : 'text-white/70 hover:text-white hover:bg-white/20'
-                    }`}
-                    title={panel.isPiP ? 'Exit Picture-in-Picture' : 'Picture-in-Picture'}
-                  >
-                    <Maximize className="w-3 h-3" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleRemoveVideo(panel.id);
-                    }}
-                    className={`p-1 rounded transition-colors text-red-400 hover:text-red-300 hover:bg-red-500/20`}
-                    title="Remove video"
-                  >
-                    <X className="w-3 h-3" />
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* Drag Handle - always available when UI is hidden or in free mode */}
+            <div 
+              className={`absolute top-0 left-0 right-0 h-8 ${showUI ? 'bg-black/20 opacity-0 hover:opacity-100' : 'bg-transparent'} transition-opacity cursor-move z-10 flex items-center justify-between px-3`}
+              onMouseDown={(e) => handleDragStart(e, panel.id)}
+            >
+              {showUI && (
+                <>
+                  <span className={`text-xs font-medium text-white truncate flex-1`}>
+                    {panel.video.title}
+                  </span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTogglePiP(panel.id);
+                      }}
+                      className={`p-1 rounded transition-colors ${
+                        panel.isPiP 
+                          ? 'bg-blue-500 text-white' 
+                          : 'text-white/70 hover:text-white hover:bg-white/20'
+                      }`}
+                      title={panel.isPiP ? 'Exit Picture-in-Picture' : 'Picture-in-Picture'}
+                    >
+                      <Maximize className="w-3 h-3" />
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemoveVideo(panel.id);
+                      }}
+                      className={`p-1 rounded transition-colors text-red-400 hover:text-red-300 hover:bg-red-500/20`}
+                      title="Remove video"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
             
             {/* Video Player */}
             <div 
@@ -892,35 +973,49 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
               }}
             />
 
-            {/* Resize Handle */}
-            <div
-              className={`absolute bottom-1 right-1 w-4 h-4 cursor-se-resize opacity-0 hover:opacity-70 transition-opacity ${
-                showUI ? 'block' : 'hidden'
-              }`}
-              style={{
-                background: `linear-gradient(-45deg, transparent 30%, rgba(255,255,255,0.8) 30%, rgba(255,255,255,0.8) 70%, transparent 70%)`,
-              }}
-              onMouseDown={(e) => handleResizeStart(e, panel.id)}
-            />
+            {/* Resize Handles - 8 directions */}
+            {showUI && (
+              <>
+                {/* Corner handles */}
+                <div
+                  className="absolute top-0 left-0 w-3 h-3 cursor-nw-resize opacity-0 hover:opacity-70 transition-opacity bg-blue-500 rounded-br"
+                  onMouseDown={(e) => handleResizeStart(e, panel.id, 'nw')}
+                />
+                <div
+                  className="absolute top-0 right-0 w-3 h-3 cursor-ne-resize opacity-0 hover:opacity-70 transition-opacity bg-blue-500 rounded-bl"
+                  onMouseDown={(e) => handleResizeStart(e, panel.id, 'ne')}
+                />
+                <div
+                  className="absolute bottom-0 left-0 w-3 h-3 cursor-sw-resize opacity-0 hover:opacity-70 transition-opacity bg-blue-500 rounded-tr"
+                  onMouseDown={(e) => handleResizeStart(e, panel.id, 'sw')}
+                />
+                <div
+                  className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize opacity-0 hover:opacity-70 transition-opacity bg-blue-500 rounded-tl"
+                  onMouseDown={(e) => handleResizeStart(e, panel.id, 'se')}
+                />
+                
+                {/* Edge handles */}
+                <div
+                  className="absolute top-0 left-1/2 -translate-x-1/2 w-6 h-2 cursor-n-resize opacity-0 hover:opacity-70 transition-opacity bg-blue-500 rounded-b"
+                  onMouseDown={(e) => handleResizeStart(e, panel.id, 'n')}
+                />
+                <div
+                  className="absolute bottom-0 left-1/2 -translate-x-1/2 w-6 h-2 cursor-s-resize opacity-0 hover:opacity-70 transition-opacity bg-blue-500 rounded-t"
+                  onMouseDown={(e) => handleResizeStart(e, panel.id, 's')}
+                />
+                <div
+                  className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-6 cursor-w-resize opacity-0 hover:opacity-70 transition-opacity bg-blue-500 rounded-r"
+                  onMouseDown={(e) => handleResizeStart(e, panel.id, 'w')}
+                />
+                <div
+                  className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-6 cursor-e-resize opacity-0 hover:opacity-70 transition-opacity bg-blue-500 rounded-l"
+                  onMouseDown={(e) => handleResizeStart(e, panel.id, 'e')}
+                />
+              </>
+            )}
           </div>
         ))}
       </div>
-
-      {/* Hotkey Help */}
-      {showUI && (
-        <div className="absolute bottom-4 left-4 z-40">
-          <div className={`${themeClasses.panel} border rounded-xl px-4 py-2`}>
-            <div className={`text-xs ${themeClasses.subtext} space-y-1`}>
-              <div><kbd className="bg-gray-200 px-1 rounded text-gray-800">Space</kbd> Play/Pause</div>
-              <div><kbd className="bg-gray-200 px-1 rounded text-gray-800">M</kbd> Mute/Unmute</div>
-              <div><kbd className="bg-gray-200 px-1 rounded text-gray-800">U</kbd> Toggle UI</div>
-              <div><kbd className="bg-gray-200 px-1 rounded text-gray-800">Hover</kbd> Show Controls</div>
-              <div><kbd className="bg-gray-200 px-1 rounded text-gray-800">Click</kbd> Bring to Front</div>
-              <div><kbd className="bg-gray-200 px-1 rounded text-gray-800">Esc</kbd> Close</div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Loading overlay */}
       {!plyrLoaded && (
