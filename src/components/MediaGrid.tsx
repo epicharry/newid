@@ -128,11 +128,12 @@ export function MediaGrid({
   if (isLoading && items.length === 0) {
     return (
       <div className={`min-h-screen ${themeClasses.bg} p-6`}>
-        <div className="media-grid">
+        <div className="columns-1 sm:columns-2 md:columns-3 lg:columns-4 xl:columns-5 gap-4 space-y-4">
           {Array.from({ length: 15 }).map((_, i) => (
             <div
               key={i}
-              className={`${themeClasses.card} border rounded-2xl animate-pulse aspect-[3/4]`}
+              className={`${themeClasses.card} border rounded-2xl animate-pulse break-inside-avoid mb-4`}
+              style={{ height: `${200 + Math.random() * 200}px` }}
             />
           ))}
         </div>
@@ -148,7 +149,7 @@ export function MediaGrid({
             key={item.id}
             data-media-item
             data-media-id={item.id}
-            className={`group cursor-pointer transition-all duration-300 hover:scale-105 ${
+            className={`group cursor-pointer transition-all duration-300 hover:scale-105 break-inside-avoid mb-4 ${
               selectedMediaIds.has(item.id) ? 'ring-4 ring-blue-400 ring-opacity-70' : ''
             }`}
             onClick={(e) => {
@@ -164,12 +165,12 @@ export function MediaGrid({
             }}
             onContextMenu={(e) => handleContextMenu(e, item.id)}
           >
-            <div className={`relative ${themeClasses.card} border rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 aspect-[3/4]`}>
+            <div className={`relative ${themeClasses.card} border rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300`}>
               {/* Media */}
               <img
                 src={item.thumbnail || item.url}
                 alt=""
-                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                className="w-full h-auto object-cover transition-transform duration-300 group-hover:scale-110"
                 loading="lazy"
                 onError={(e) => {
                   const target = e.target as HTMLImageElement;

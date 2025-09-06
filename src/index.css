@@ -67,23 +67,9 @@ body {
   }
 }
 
-/* Grid layout for media cards */
-.media-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 1rem;
-}
-
-@media (max-width: 640px) {
-  .media-grid {
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  }
-}
-
-@media (min-width: 1536px) {
-  .media-grid {
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  }
+.masonry-item {
+  break-inside: avoid;
+  margin-bottom: 1rem;
 }
 
 /* Custom scrollbar */
