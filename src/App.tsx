@@ -1229,156 +1229,150 @@ function App() {
         theme={settings.theme}
       />
       <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-12' : 'ml-80'} ${themeClasses.bg}`}>
-      <Header 
-        theme={settings.theme} 
-        onThemeChange={handleThemeChange}
-        onBack={handleBack}
-        currentSource={activeSession?.type}
-        currentSubreddit={currentSubreddit}
-        currentTags={currentTags}
-        currentSearchQuery={currentSearchQuery}
-        isSearchMode={isSearchMode}
-        currentSort={currentSort}
-        favoriteSubreddits={settings.favoriteSubreddits}
-        onToggleFavoriteSubreddit={handleToggleFavoriteSubreddit}
-        onSortChange={handleSortChange}
-        showFavorites={showFavorites}
-        onToggleFavorites={handleToggleFavorites}
-        favoriteCount={settings.favoriteMedia.length}
-        mediaFilter={currentMediaFilter}
-        onMediaFilterChange={handleMediaFilterChange}
-        onShowFolders={handleShowFolders}
-        folderCount={settings.mediaFolders.length}
-        onSubredditSearch={handleSubredditSearch}
-        currentSearchSort={'relevance'}
-        onSearchSortChange={handleSearchSortChange}
-        user={userProfile}
-        onShowAuth={handleShowAuth}
-        onSignOut={handleSignOut}
-        isSyncing={cloudSync.isSyncing}
-      />
-      
-      <main>
-        {showFeed ? (
-          <FeedPage
-            favoriteSubreddits={settings.favoriteSubreddits}
-            theme={settings.theme}
-            onSubredditSelect={handleSubredditSelect}
-            onItemClick={handleMediaClick}
-            folders={settings.mediaFolders}
-            onAddToFolder={handleAddToFolder}
-            onCreateFolder={handleCreateFolder}
-            selectedMediaIds={selectedMediaIds}
-            onMediaSelect={handleMediaSelect}
-            isMultiSelectMode={isMultiSelectMode}
-            onFeedMediaUpdate={setFeedMediaItems}
-          />
-        ) : selectedFolderId === '__folders_list__' ? (
-          <FoldersView
-            folders={settings.mediaFolders}
-            mediaItems={[...mediaItems, ...favoriteMediaItems]}
-            onItemClick={handleMediaClick}
-            onCreateFolder={handleCreateFolder}
-            onDeleteFolder={handleDeleteFolder}
-            onRenameFolder={handleRenameFolder}
-            theme={settings.theme}
-            selectedFolderId={null}
-            onFolderSelect={handleFolderSelect}
-          />
-        ) : selectedFolderId && selectedFolderId !== '__folders_list__' ? (
-          <FoldersView
-            folders={settings.mediaFolders}
-            mediaItems={[...mediaItems, ...favoriteMediaItems]}
-            onItemClick={handleMediaClick}
-            onCreateFolder={handleCreateFolder}
-            onDeleteFolder={handleDeleteFolder}
-            onRenameFolder={handleRenameFolder}
-            onRemoveFromFolder={handleRemoveFromFolderLegacy}
-            onSetFolderThumbnail={isAuthenticated ? handleSetFolderThumbnail : handleSetFolderThumbnailLegacy}
-            theme={settings.theme}
-            selectedFolderId={selectedFolderId}
-            onFolderSelect={handleFolderSelect}
-          />
-        ) : showFavorites ? (
-          <FavoritesView
-            favoriteMedia={filteredFavoriteMediaItems}
-            onItemClick={handleMediaClick}
-            theme={settings.theme}
-            folders={settings.mediaFolders}
-            onAddToFolder={handleAddToFolder}
-            onCreateFolder={handleCreateFolder}
-            selectedMediaIds={selectedMediaIds}
-            onMediaSelect={handleMediaSelect}
-            isMultiSelectMode={isMultiSelectMode}
-          />
-        ) : filteredMediaItems.length > 0 ? (
-          <MediaGrid
-            items={filteredMediaItems}
-            onItemClick={handleMediaClick}
-            isLoading={isLoading}
-            theme={settings.theme}
-            onLoadMore={handleLoadMore}
-            hasMore={hasMore}
-            folders={settings.mediaFolders}
-            onAddToFolder={handleAddToFolder}
-            onCreateFolder={handleCreateFolder}
-            selectedMediaIds={selectedMediaIds}
-            onMediaSelect={handleMediaSelect}
-            isMultiSelectMode={isMultiSelectMode}
-          />
-        ) : isLoading ? (
-          <MediaGrid
-            items={[]}
-            onItemClick={handleMediaClick}
-            isLoading={true}
-            theme={settings.theme}
-          />
-        ) : (
-          <div className="flex items-center justify-center min-h-[60vh] p-6">
-            <div className="text-center">
-              <p className={`${themeClasses.subtext} text-lg`}>
-                {isSearchMode && currentSearchQuery
-                  ? currentSubreddit
-                    ? `No ${currentMediaFilter === 'all' ? 'media content' : currentMediaFilter} found for "${currentSearchQuery}" in r/${currentSubreddit}`
-                    : `No ${currentMediaFilter === 'all' ? 'media content' : currentMediaFilter} found for "${currentSearchQuery}" on Reddit`
-                  : currentMediaFilter === 'all' 
-                    ? settings.selectedSource === 'rule34'
-                      ? `No media content found for tags: ${currentTags}`
-                      : currentSubreddit.includes('+') 
-                        ? `No media content found in multi-subreddit feed`
-                        : `No media content found for r/${currentSubreddit}`
-                    : settings.selectedSource === 'rule34'
-                      ? `No ${currentMediaFilter} found for tags: ${currentTags}`
-                      : currentSubreddit.includes('+')
-                        ? `No ${currentMediaFilter} found in multi-subreddit feed`
-                        : `No ${currentMediaFilter} found for r/${currentSubreddit}`
-                }
-              </p>
-            </div>
-          </div>
-        )}
-      </main>
-
-      </div>
-    </div>
-  );
-}
-
-export default App;
-      </div>
-    </div>
-  );
-}
-
-export default App;
-      {selectedMediaIndex !== null && (
-        <MediaViewer
-          items={mediaItems}
-          currentIndex={selectedMediaIndex}
-          onClose={handleCloseViewer}
-          onNavigate={handleNavigateMedia}
-          theme={settings.theme}
-          favoriteMedia={settings.favoriteMedia}
-          onToggleFavorite={handleToggleFavoriteMedia}
+        <Header 
+          theme={settings.theme} 
+          onThemeChange={handleThemeChange}
+          onBack={handleBack}
+          currentSource={activeSession?.type}
+          currentSubreddit={currentSubreddit}
+          currentTags={currentTags}
+          currentSearchQuery={currentSearchQuery}
+          isSearchMode={isSearchMode}
+          currentSort={currentSort}
+          favoriteSubreddits={settings.favoriteSubreddits}
+          onToggleFavoriteSubreddit={handleToggleFavoriteSubreddit}
+          onSortChange={handleSortChange}
+          showFavorites={showFavorites}
+          onToggleFavorites={handleToggleFavorites}
+          favoriteCount={settings.favoriteMedia.length}
+          mediaFilter={currentMediaFilter}
+          onMediaFilterChange={handleMediaFilterChange}
+          onShowFolders={handleShowFolders}
+          folderCount={settings.mediaFolders.length}
+          onSubredditSearch={handleSubredditSearch}
+          currentSearchSort={'relevance'}
+          onSearchSortChange={handleSearchSortChange}
+          user={userProfile}
+          onShowAuth={handleShowAuth}
+          onSignOut={handleSignOut}
+          isSyncing={cloudSync.isSyncing}
         />
-      )}
+        
+        <main>
+          {showFeed ? (
+            <FeedPage
+              favoriteSubreddits={settings.favoriteSubreddits}
+              theme={settings.theme}
+              onSubredditSelect={handleSubredditSelect}
+              onItemClick={handleMediaClick}
+              folders={settings.mediaFolders}
+              onAddToFolder={handleAddToFolder}
+              onCreateFolder={handleCreateFolder}
+              selectedMediaIds={selectedMediaIds}
+              onMediaSelect={handleMediaSelect}
+              isMultiSelectMode={isMultiSelectMode}
+              onFeedMediaUpdate={setFeedMediaItems}
+            />
+          ) : selectedFolderId === '__folders_list__' ? (
+            <FoldersView
+              folders={settings.mediaFolders}
+              mediaItems={[...mediaItems, ...favoriteMediaItems]}
+              onItemClick={handleMediaClick}
+              onCreateFolder={handleCreateFolder}
+              onDeleteFolder={handleDeleteFolder}
+              onRenameFolder={handleRenameFolder}
+              theme={settings.theme}
+              selectedFolderId={null}
+              onFolderSelect={handleFolderSelect}
+            />
+          ) : selectedFolderId && selectedFolderId !== '__folders_list__' ? (
+            <FoldersView
+              folders={settings.mediaFolders}
+              mediaItems={[...mediaItems, ...favoriteMediaItems]}
+              onItemClick={handleMediaClick}
+              onCreateFolder={handleCreateFolder}
+              onDeleteFolder={handleDeleteFolder}
+              onRenameFolder={handleRenameFolder}
+              onRemoveFromFolder={handleRemoveFromFolderLegacy}
+              onSetFolderThumbnail={isAuthenticated ? handleSetFolderThumbnail : handleSetFolderThumbnailLegacy}
+              theme={settings.theme}
+              selectedFolderId={selectedFolderId}
+              onFolderSelect={handleFolderSelect}
+            />
+          ) : showFavorites ? (
+            <FavoritesView
+              favoriteMedia={filteredFavoriteMediaItems}
+              onItemClick={handleMediaClick}
+              theme={settings.theme}
+              folders={settings.mediaFolders}
+              onAddToFolder={handleAddToFolder}
+              onCreateFolder={handleCreateFolder}
+              selectedMediaIds={selectedMediaIds}
+              onMediaSelect={handleMediaSelect}
+              isMultiSelectMode={isMultiSelectMode}
+            />
+          ) : filteredMediaItems.length > 0 ? (
+            <MediaGrid
+              items={filteredMediaItems}
+              onItemClick={handleMediaClick}
+              isLoading={isLoading}
+              theme={settings.theme}
+              onLoadMore={handleLoadMore}
+              hasMore={hasMore}
+              folders={settings.mediaFolders}
+              onAddToFolder={handleAddToFolder}
+              onCreateFolder={handleCreateFolder}
+              selectedMediaIds={selectedMediaIds}
+              onMediaSelect={handleMediaSelect}
+              isMultiSelectMode={isMultiSelectMode}
+            />
+          ) : isLoading ? (
+            <MediaGrid
+              items={[]}
+              onItemClick={handleMediaClick}
+              isLoading={true}
+              theme={settings.theme}
+            />
+          ) : (
+            <div className="flex items-center justify-center min-h-[60vh] p-6">
+              <div className="text-center">
+                <p className={`${themeClasses.subtext} text-lg`}>
+                  {isSearchMode && currentSearchQuery
+                    ? currentSubreddit
+                      ? `No ${currentMediaFilter === 'all' ? 'media content' : currentMediaFilter} found for "${currentSearchQuery}" in r/${currentSubreddit}`
+                      : `No ${currentMediaFilter === 'all' ? 'media content' : currentMediaFilter} found for "${currentSearchQuery}" on Reddit`
+                    : currentMediaFilter === 'all' 
+                      ? settings.selectedSource === 'rule34'
+                        ? `No media content found for tags: ${currentTags}`
+                        : currentSubreddit.includes('+') 
+                          ? `No media content found in multi-subreddit feed`
+                          : `No media content found for r/${currentSubreddit}`
+                      : settings.selectedSource === 'rule34'
+                        ? `No ${currentMediaFilter} found for tags: ${currentTags}`
+                        : currentSubreddit.includes('+')
+                          ? `No ${currentMediaFilter} found in multi-subreddit feed`
+                          : `No ${currentMediaFilter} found for r/${currentSubreddit}`
+                  }
+                </p>
+              </div>
+            </div>
+          )}
+        </main>
+
+        {selectedMediaIndex !== null && (
+          <MediaViewer
+            items={mediaItems}
+            currentIndex={selectedMediaIndex}
+            onClose={handleCloseViewer}
+            onNavigate={handleNavigateMedia}
+            theme={settings.theme}
+            favoriteMedia={settings.favoriteMedia}
+            onToggleFavorite={handleToggleFavoriteMedia}
+          />
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default App;
