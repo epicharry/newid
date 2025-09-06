@@ -64,8 +64,6 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
   const [stretchToFill, setStretchToFill] = useState(false);
   const [plyrLoaded, setPlyrLoaded] = useState(false);
   const [maxZIndex, setMaxZIndex] = useState(10);
-  const [isAppFullscreen, setIsAppFullscreen] = useState(false);
-  
   const [dragState, setDragState] = useState<{
     isDragging: boolean;
     panelId: string | null;
@@ -77,21 +75,16 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     startPos: { x: 0, y: 0 },
     startPanelPos: { x: 0, y: 0 },
   });
-  
   const [resizeState, setResizeState] = useState<{
     isResizing: boolean;
     panelId: string | null;
     startPos: { x: number; y: number };
     startSize: { width: number; height: number };
-    startPosition: { x: number; y: number };
-    handle: string;
   }>({
     isResizing: false,
     panelId: null,
     startPos: { x: 0, y: 0 },
     startSize: { width: 0, height: 0 },
-    startPosition: { x: 0, y: 0 },
-    handle: '',
   });
   
   const containerRef = useRef<HTMLDivElement>(null);
@@ -176,14 +169,8 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
           e.preventDefault();
           setShowUI(!showUI);
           break;
-        case 'f11':
-          e.preventDefault();
-          toggleAppFullscreen();
-          break;
         case 'escape':
-          if (isAppFullscreen) {
-            exitAppFullscreen();
-          } else if (showSettings) {
+          if (showSettings) {
             setShowSettings(false);
           } else if (videoPanels.some(p => p.isPiP)) {
             // Exit all PiP modes
@@ -197,9 +184,9 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [showUI, showSettings, isAppFullscreen]);
+  }, [showUI, showSettings]);
 
-  // Mouse event handlers for dragging and resizing
+  // Mouse event handlers for dragging
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (dragState.isDragging && dragState.panelId) {
@@ -223,42 +210,23 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
         const deltaX = e.clientX - resizeState.startPos.x;
         const deltaY = e.clientY - resizeState.startPos.y;
         
-        setVideoPanels(prev => prev.map(panel => {
-          if (panel.id !== resizeState.panelId) return panel;
-          
-          let newSize = { ...resizeState.startSize };
-          let newPosition = { ...resizeState.startPosition };
-          
-          const handle = resizeState.handle;
-          
-          // Handle resizing based on which handle is being dragged
-          if (handle.includes('n')) {
-            newSize.height = Math.max(113, resizeState.startSize.height - deltaY);
-            newPosition.y = resizeState.startPosition.y + deltaY;
-          }
-          if (handle.includes('s')) {
-            newSize.height = Math.max(113, resizeState.startSize.height + deltaY);
-          }
-          if (handle.includes('w')) {
-            newSize.width = Math.max(200, resizeState.startSize.width - deltaX);
-            newPosition.x = resizeState.startPosition.x + deltaX;
-          }
-          if (handle.includes('e')) {
-            newSize.width = Math.max(200, resizeState.startSize.width + deltaX);
-          }
-          
-          return {
-            ...panel,
-            size: newSize,
-            position: newPosition,
-          };
-        }));
+        setVideoPanels(prev => prev.map(panel => 
+          panel.id === resizeState.panelId 
+            ? {
+                ...panel,
+                size: {
+                  width: Math.max(200, resizeState.startSize.width + deltaX),
+                  height: Math.max(113, resizeState.startSize.height + deltaY),
+                }
+              }
+            : panel
+        ));
       }
     };
 
     const handleMouseUp = () => {
       setDragState(prev => ({ ...prev, isDragging: false, panelId: null }));
-      setResizeState(prev => ({ ...prev, isResizing: false, panelId: null, handle: '' }));
+      setResizeState(prev => ({ ...prev, isResizing: false, panelId: null }));
     };
 
     if (dragState.isDragging || resizeState.isResizing) {
@@ -378,26 +346,6 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     setVideoPanels(prev => prev.map(panel => 
       panel.id === videoId ? { ...panel, player } : panel
     ));
-  };
-
-  const toggleAppFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().then(() => {
-        setIsAppFullscreen(true);
-      }).catch(console.error);
-    } else {
-      document.exitFullscreen().then(() => {
-        setIsAppFullscreen(false);
-      }).catch(console.error);
-    }
-  };
-
-  const exitAppFullscreen = () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen().then(() => {
-        setIsAppFullscreen(false);
-      }).catch(console.error);
-    }
   };
 
   const handleGlobalPlayPause = () => {
@@ -566,8 +514,8 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     const panel = videoPanels.find(p => p.id === panelId);
     if (!panel) return;
     
-    // Allow dragging in free mode or when in PiP mode, or always when UI is hidden
-    if (layoutMode !== 'free' && !panel.isPiP && showUI) return;
+    // Allow dragging in free mode or when in PiP mode
+    if (layoutMode !== 'free' && !panel.isPiP) return;
     
     // Don't drag if in browser PiP mode
     if (document.pictureInPictureElement) return;
@@ -583,7 +531,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     });
   };
 
-  const handleResizeStart = (e: React.MouseEvent, panelId: string, handle: string) => {
+  const handleResizeStart = (e: React.MouseEvent, panelId: string) => {
     e.stopPropagation();
     
     const panel = videoPanels.find(p => p.id === panelId);
@@ -594,8 +542,6 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
       panelId,
       startPos: { x: e.clientX, y: e.clientY },
       startSize: panel.size,
-      startPosition: panel.position,
-      handle,
     });
   };
 
@@ -673,7 +619,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
                   YouTube Multi-Viewer
                 </h1>
                 <p className={`text-sm ${themeClasses.subtext}`}>
-                  {videos.length} video{videos.length !== 1 ? 's' : ''} • Press U to toggle UI • F11 for fullscreen
+                  {videos.length} video{videos.length !== 1 ? 's' : ''} • Press U to toggle UI
                 </p>
               </div>
             </div>
@@ -886,7 +832,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
           <div
             key={panel.id}
             className={`${panel.isPiP || !showUI ? 'fixed' : 'absolute'} ${themeClasses.panel} border rounded-2xl overflow-hidden shadow-2xl ${
-              (layoutMode === 'free' || panel.isPiP || !showUI) ? 'cursor-move' : ''
+              (layoutMode === 'free' || panel.isPiP) ? 'cursor-move' : ''
             }`}
             style={{ 
               left: panel.position.x,
@@ -898,10 +844,10 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
             }}
             onClick={() => bringToFront(panel.id)}
           >
-            {/* Drag Handle - always visible when UI is hidden or in free mode */}
-            {(showUI || !showUI) && (
+            {/* Invisible Drag Handle - only visible on hover when UI is shown */}
+            {showUI && (
               <div 
-                className={`absolute top-0 left-0 right-0 h-8 bg-black/20 ${showUI ? 'opacity-0 hover:opacity-100' : 'opacity-0'} transition-opacity cursor-move z-10 flex items-center justify-between px-3`}
+                className={`absolute top-0 left-0 right-0 h-8 bg-black/20 opacity-0 hover:opacity-100 transition-opacity cursor-move z-10 flex items-center justify-between px-3`}
                 onMouseDown={(e) => handleDragStart(e, panel.id)}
               >
                 <span className={`text-xs font-medium text-white truncate flex-1`}>
@@ -935,14 +881,6 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
                 </div>
               </div>
             )}
-
-            {/* Always-active drag area when UI is hidden */}
-            {!showUI && (
-              <div 
-                className="absolute top-0 left-0 right-0 h-12 cursor-move z-20"
-                onMouseDown={(e) => handleDragStart(e, panel.id)}
-              />
-            )}
             
             {/* Video Player */}
             <div 
@@ -954,49 +892,35 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
               }}
             />
 
-            {/* 8-Directional Resize Handles */}
-            {showUI && (
-              <>
-                {/* Corner handles */}
-                <div
-                  className="absolute top-0 left-0 w-3 h-3 cursor-nw-resize bg-blue-500/50 hover:bg-blue-500 transition-colors"
-                  onMouseDown={(e) => handleResizeStart(e, panel.id, 'nw')}
-                />
-                <div
-                  className="absolute top-0 right-0 w-3 h-3 cursor-ne-resize bg-blue-500/50 hover:bg-blue-500 transition-colors"
-                  onMouseDown={(e) => handleResizeStart(e, panel.id, 'ne')}
-                />
-                <div
-                  className="absolute bottom-0 left-0 w-3 h-3 cursor-sw-resize bg-blue-500/50 hover:bg-blue-500 transition-colors"
-                  onMouseDown={(e) => handleResizeStart(e, panel.id, 'sw')}
-                />
-                <div
-                  className="absolute bottom-0 right-0 w-3 h-3 cursor-se-resize bg-blue-500/50 hover:bg-blue-500 transition-colors"
-                  onMouseDown={(e) => handleResizeStart(e, panel.id, 'se')}
-                />
-                
-                {/* Edge handles */}
-                <div
-                  className="absolute top-0 left-3 right-3 h-1 cursor-n-resize bg-blue-500/30 hover:bg-blue-500/70 transition-colors"
-                  onMouseDown={(e) => handleResizeStart(e, panel.id, 'n')}
-                />
-                <div
-                  className="absolute bottom-0 left-3 right-3 h-1 cursor-s-resize bg-blue-500/30 hover:bg-blue-500/70 transition-colors"
-                  onMouseDown={(e) => handleResizeStart(e, panel.id, 's')}
-                />
-                <div
-                  className="absolute left-0 top-3 bottom-3 w-1 cursor-w-resize bg-blue-500/30 hover:bg-blue-500/70 transition-colors"
-                  onMouseDown={(e) => handleResizeStart(e, panel.id, 'w')}
-                />
-                <div
-                  className="absolute right-0 top-3 bottom-3 w-1 cursor-e-resize bg-blue-500/30 hover:bg-blue-500/70 transition-colors"
-                  onMouseDown={(e) => handleResizeStart(e, panel.id, 'e')}
-                />
-              </>
-            )}
+            {/* Resize Handle */}
+            <div
+              className={`absolute bottom-1 right-1 w-4 h-4 cursor-se-resize opacity-0 hover:opacity-70 transition-opacity ${
+                showUI ? 'block' : 'hidden'
+              }`}
+              style={{
+                background: `linear-gradient(-45deg, transparent 30%, rgba(255,255,255,0.8) 30%, rgba(255,255,255,0.8) 70%, transparent 70%)`,
+              }}
+              onMouseDown={(e) => handleResizeStart(e, panel.id)}
+            />
           </div>
         ))}
       </div>
+
+      {/* Hotkey Help */}
+      {showUI && (
+        <div className="absolute bottom-4 left-4 z-40">
+          <div className={`${themeClasses.panel} border rounded-xl px-4 py-2`}>
+            <div className={`text-xs ${themeClasses.subtext} space-y-1`}>
+              <div><kbd className="bg-gray-200 px-1 rounded text-gray-800">Space</kbd> Play/Pause</div>
+              <div><kbd className="bg-gray-200 px-1 rounded text-gray-800">M</kbd> Mute/Unmute</div>
+              <div><kbd className="bg-gray-200 px-1 rounded text-gray-800">U</kbd> Toggle UI</div>
+              <div><kbd className="bg-gray-200 px-1 rounded text-gray-800">Hover</kbd> Show Controls</div>
+              <div><kbd className="bg-gray-200 px-1 rounded text-gray-800">Click</kbd> Bring to Front</div>
+              <div><kbd className="bg-gray-200 px-1 rounded text-gray-800">Esc</kbd> Close</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Loading overlay */}
       {!plyrLoaded && (
