@@ -774,6 +774,17 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
                 <Settings className="w-4 h-4" />
               </button>
 
+              {/* Electron Fullscreen Button */}
+              {isElectron && (
+                <button
+                  onClick={toggleElectronFullscreen}
+                  className={`p-2 rounded-xl ${isElectronFullscreen ? 'bg-blue-500 text-white' : themeClasses.secondaryButton} transition-all duration-200`}
+                  title="Toggle Fullscreen (F)"
+                >
+                  {isElectronFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                </button>
+              )}
+
               <button
                 onClick={() => setShowUI(!showUI)}
                 className={`p-2 rounded-xl ${themeClasses.secondaryButton} transition-all duration-200`}
