@@ -210,7 +210,6 @@ function App() {
 
   // Get current session data
   const activeSession = getActiveSession();
-  const mediaItems = activeSession?.state.mediaItems || [];
   const isLoading = activeSession?.state.isLoading || false;
   const error = activeSession?.state.error || null;
   const hasMore = activeSession?.state.hasMore || false;
@@ -225,6 +224,8 @@ function App() {
   const currentMediaFilter = activeSession?.data.mediaFilter || settings.mediaFilter;
   const selectedYouTubeVideos = activeSession?.data.selectedVideos || settings.selectedYouTubeVideos;
   const showYouTubeViewer = activeSession?.data.showViewer || false;
+
+  const mediaItems = activeSession?.state.mediaItems || [];
 
   // Filter media items based on current filter
   const filteredMediaItems = mediaItems.filter(item => {
