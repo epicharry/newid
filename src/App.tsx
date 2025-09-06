@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MediaItem, MediaSource, ThemeMode, AppSettings, RedditSortType, SubredditInfo, MediaFilter, MediaFolder } from './types/app';
+import { MediaItem, MediaSource, ThemeMode, AppSettings, RedditSortType, SubredditInfo, MediaFilter, MediaFolder, ViewerSession } from './types/app';
 import { redditApi } from './services/redditApi';
 import { rule34Api } from './services/rule34Api';
 import { SourceSelector } from './components/SourceSelector';
@@ -14,13 +14,15 @@ import { FeedPage } from './components/FeedPage';
 import { YouTubeInput } from './components/YouTubeInput';
 import { YouTubeMultiViewer } from './components/YouTubeMultiViewer';
 import { AuthModal } from './components/AuthModal';
+import { GlobalSidebar } from './components/GlobalSidebar';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import { useAuth } from './hooks/useAuth';
 import { useCloudSync } from './hooks/useCloudSync';
+import { useViewerSessions } from './hooks/useViewerSessions';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
 function App() {
-  const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [settings, setSettings] = useLocalStorage<AppSettings>('mediaVault_settings', {
     theme: 'light',
     selectedSource: null,
@@ -33,21 +35,6 @@ function App() {
     selectedYouTubeVideos: [],
   });
   
-  const [currentSubreddit, setCurrentSubreddit] = useState<string>('');
-  const [currentTags, setCurrentTags] = useState<string>('');
-  const [currentSearchQuery, setCurrentSearchQuery] = useState<string>('');
-  const [isSearchMode, setIsSearchMode] = useState<boolean>(false);
-  const [subredditInfo, setSubredditInfo] = useState<SubredditInfo | null>(null);
-  const [currentSort, setCurrentSort] = useState<RedditSortType>(settings.defaultSort);
-  const [currentMediaFilter, setCurrentMediaFilter] = useState<MediaFilter>(settings.mediaFilter);
-  const [selectedMediaIndex, setSelectedMediaIndex] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [nextPageToken, setNextPageToken] = useState<string | null>(null);
-  const [currentPid, setCurrentPid] = useState<number>(0);
-  const [currentPage, setCurrentPage] = useState<number>(1);
-  const [totalPages, setTotalPages] = useState<number>(1);
-  const [hasMore, setHasMore] = useState(true);
   const [showFavorites, setShowFavorites] = useState(false);
   const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
   const [favoriteMediaItems, setFavoriteMediaItems] = useState<MediaItem[]>([]);
@@ -58,6 +45,19 @@ function App() {
   const [currentSearchSort, setCurrentSearchSort] = useState<string>('relevance');
   const [shouldSyncLocalDataToCloud, setShouldSyncLocalDataToCloud] = useState(false);
   const [feedMediaItems, setFeedMediaItems] = useState<MediaItem[]>([]);
+
+  // Session management
+  const {
+    sessions,
+    activeSessionId,
+    createSession,
+    updateSession,
+    updateSessionData,
+    closeSession,
+    switchToSession,
+    getActiveSession,
+    findSession,
+  } = useViewerSessions();
 
   // Auth and cloud sync
   const { user, userProfile, isLoading: authLoading, signIn, signUp, signOut, isAuthenticated } = useAuth();
@@ -210,6 +210,24 @@ function App() {
     );
   }
 
+  // Get current session data
+  const activeSession = getActiveSession();
+  const mediaItems = activeSession?.state.mediaItems || [];
+  const isLoading = activeSession?.state.isLoading || false;
+  const error = activeSession?.state.error || null;
+  const hasMore = activeSession?.state.hasMore || false;
+  const selectedMediaIndex = activeSession?.state.selectedMediaIndex || null;
+  
+  // Derived state from active session
+  const currentSubreddit = activeSession?.data.subreddit || '';
+  const currentTags = activeSession?.data.tags || '';
+  const currentSearchQuery = activeSession?.data.searchQuery || '';
+  const isSearchMode = activeSession?.data.isSearchMode || false;
+  const currentSort = activeSession?.data.sort || settings.defaultSort;
+  const currentMediaFilter = activeSession?.data.mediaFilter || settings.mediaFilter;
+  const selectedYouTubeVideos = activeSession?.data.selectedVideos || settings.selectedYouTubeVideos;
+  const showYouTubeViewer = activeSession?.data.showViewer || false;
+
   // Filter media items based on current filter
   const filteredMediaItems = mediaItems.filter(item => {
     switch (currentMediaFilter) {
@@ -240,192 +258,203 @@ function App() {
   
   // Combine all available media items
   const allMediaItems = [...mediaItems, ...favoriteMediaItems, ...feedMediaItems];
-  
+
+  // Helper function to get or create session
+  const getOrCreateSession = (
+    type: 'reddit' | 'rule34' | 'youtube',
+    data: ViewerSession['data']
+  ) => {
+    const existing = findSession(type, data);
+    if (existing) {
+      switchToSession(existing.id);
+      return existing.id;
+    }
+    return createSession(type, data);
+  };
+
   const loadSubreddit = async (subreddit: string, sort: RedditSortType, isNewSubreddit = false) => {
+    if (!activeSessionId) return;
+    
     if (!isNewSubreddit && isLoading) return;
     
     try {
-      setIsLoading(true);
-      setError(null);
+      updateSession(activeSessionId, { isLoading: true, error: null });
       
-      const after = isNewSubreddit ? undefined : nextPageToken;
+      const after = isNewSubreddit ? undefined : activeSession?.state.nextPageToken;
       const result = await redditApi.fetchSubreddit(subreddit, sort, after);
       
-      if (isNewSubreddit) {
-        setMediaItems(result.items);
-      } else {
-        setMediaItems(prev => [...prev, ...result.items]);
-      }
+      const newItems = isNewSubreddit 
+        ? result.items 
+        : [...(activeSession?.state.mediaItems || []), ...result.items];
       
-      setNextPageToken(result.nextPage);
-      setHasMore(!!result.nextPage);
-      
+      updateSession(activeSessionId, {
+        mediaItems: newItems,
+        nextPageToken: result.nextPage,
+        hasMore: !!result.nextPage,
+        isLoading: false,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load content');
-    } finally {
-      setIsLoading(false);
+      updateSession(activeSessionId, {
+        error: err instanceof Error ? err.message : 'Failed to load content',
+        isLoading: false,
+      });
     }
   };
 
   const loadSearchResults = async (query: string, subreddit?: string, sort?: string, isNewSearch = false) => {
+    if (!activeSessionId) return;
+    
     if (!isNewSearch && isLoading) return;
     
     try {
-      setIsLoading(true);
-      setError(null);
+      updateSession(activeSessionId, { isLoading: true, error: null });
       
-      const after = isNewSearch ? undefined : nextPageToken;
+      const after = isNewSearch ? undefined : activeSession?.state.nextPageToken;
       const result = subreddit 
         ? await redditApi.searchSubreddit(subreddit, query, after)
         : await redditApi.searchAllReddit(query, sort || 'relevance', after);
       
-      if (isNewSearch) {
-        setMediaItems(result.items);
-      } else {
-        setMediaItems(prev => [...prev, ...result.items]);
-      }
+      const newItems = isNewSearch 
+        ? result.items 
+        : [...(activeSession?.state.mediaItems || []), ...result.items];
       
-      setNextPageToken(result.nextPage);
-      setHasMore(!!result.nextPage);
-      
+      updateSession(activeSessionId, {
+        mediaItems: newItems,
+        nextPageToken: result.nextPage,
+        hasMore: !!result.nextPage,
+        isLoading: false,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load search results');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-  const loadRule34Posts = async (tags: string, pid: number, isNewSearch = false) => {
-    if (!isNewSearch && isLoading) return;
-    
-    try {
-      setIsLoading(true);
-      setError(null);
-      
-      const result = await rule34Api.fetchPosts(tags, pid);
-      
-      if (isNewSearch) {
-        setMediaItems(result.items);
-      } else {
-        setMediaItems(prev => [...prev, ...result.items]);
-      }
-      
-      setCurrentPid(result.nextPage || pid);
-      setHasMore(!!result.nextPage);
-      
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load content');
-    } finally {
-      setIsLoading(false);
+      updateSession(activeSessionId, {
+        error: err instanceof Error ? err.message : 'Failed to load search results',
+        isLoading: false,
+      });
     }
   };
 
-  const loadSubredditInfo = async (subreddit: string) => {
+  const loadRule34Posts = async (tags: string, pid: number, isNewSearch = false) => {
+    if (!activeSessionId) return;
+    
+    if (!isNewSearch && isLoading) return;
+    
     try {
-      const info = await redditApi.fetchSubredditInfo(subreddit);
-      setSubredditInfo(info);
+      updateSession(activeSessionId, { isLoading: true, error: null });
+      
+      const result = await rule34Api.fetchPosts(tags, pid);
+      
+      const newItems = isNewSearch 
+        ? result.items 
+        : [...(activeSession?.state.mediaItems || []), ...result.items];
+      
+      updateSession(activeSessionId, {
+        mediaItems: newItems,
+        currentPid: result.nextPage || pid,
+        hasMore: !!result.nextPage,
+        isLoading: false,
+      });
     } catch (err) {
-      console.error('Failed to load subreddit info:', err);
-      setSubredditInfo(null);
+      updateSession(activeSessionId, {
+        error: err instanceof Error ? err.message : 'Failed to load content',
+        isLoading: false,
+      });
     }
   };
 
   const handleSourceSelect = (source: MediaSource) => {
     setSettings(prev => ({ ...prev, selectedSource: source }));
-    setError(null);
   };
 
   const handleSubredditSelect = (subreddit: string) => {
-    setCurrentSubreddit(subreddit);
-    setCurrentTags('');
-    setCurrentSearchQuery('');
-    setIsSearchMode(false);
-    setCurrentSort(settings.defaultSort);
-    setCurrentMediaFilter(settings.mediaFilter);
-    setSelectedMediaIndex(null);
-    setNextPageToken(null);
-    setHasMore(true);
-    setMediaItems([]);
+    // Create or switch to Reddit session
+    const sessionId = getOrCreateSession('reddit', {
+      subreddit,
+      sort: settings.defaultSort,
+      mediaFilter: settings.mediaFilter,
+      isSearchMode: false,
+    });
+    
     setShowFavorites(false);
     setSelectedFolderId(null);
-    loadSubreddit(subreddit, settings.defaultSort, true);
-    loadSubredditInfo(subreddit);
+    
+    // Load content for the session
+    setTimeout(() => loadSubreddit(subreddit, settings.defaultSort, true), 0);
   };
 
   const handleSearchAllReddit = (query: string, sort: string = 'relevance') => {
-    setCurrentSearchQuery(query);
-    setCurrentSearchSort('relevance'); // Always start with relevance
-    setCurrentSubreddit('');
-    setCurrentTags('');
-    setIsSearchMode(true);
-    setCurrentMediaFilter(settings.mediaFilter);
-    setSelectedMediaIndex(null);
-    setNextPageToken(null);
-    setHasMore(true);
-    setMediaItems([]);
+    // Create or switch to Reddit search session
+    const sessionId = getOrCreateSession('reddit', {
+      searchQuery: query,
+      isSearchMode: true,
+      mediaFilter: settings.mediaFilter,
+    });
+    
     setShowFavorites(false);
     setSelectedFolderId(null);
-    setSubredditInfo(null);
-    loadSearchResults(query, undefined, 'relevance', true);
+    
+    // Load search results for the session
+    setTimeout(() => loadSearchResults(query, undefined, 'relevance', true), 0);
   };
 
   const handleSearchSortChange = (sort: string) => {
-    setCurrentSearchSort(sort);
+    if (!activeSessionId || !activeSession) return;
+    
     if (isSearchMode && currentSearchQuery && !currentSubreddit) {
-      setMediaItems([]);
-      setNextPageToken(null);
-      setHasMore(true);
-      loadSearchResults(currentSearchQuery, undefined, sort, true);
+      updateSession(activeSessionId, {
+        mediaItems: [],
+        nextPageToken: null,
+        hasMore: true,
+      });
+      setTimeout(() => loadSearchResults(currentSearchQuery, undefined, sort, true), 0);
     }
   };
 
   const handleSubredditSearch = (query: string) => {
-    if (!currentSubreddit) return;
+    if (!currentSubreddit || !activeSessionId) return;
     
-    setCurrentSearchQuery(query);
-    setIsSearchMode(true);
-    setSelectedMediaIndex(null);
-    setNextPageToken(null);
-    setHasMore(true);
-    setMediaItems([]);
-    loadSearchResults(query, currentSubreddit, undefined, true);
+    updateSessionData(activeSessionId, {
+      searchQuery: query,
+      isSearchMode: true,
+    });
+    
+    updateSession(activeSessionId, {
+      selectedMediaIndex: null,
+      nextPageToken: null,
+      hasMore: true,
+      mediaItems: [],
+    });
+    
+    setTimeout(() => loadSearchResults(query, currentSubreddit, undefined, true), 0);
   };
+
   const handleTagsSelect = (tags: string) => {
-    setCurrentTags(tags);
-    setCurrentSubreddit('');
-    setCurrentSearchQuery('');
-    setIsSearchMode(false);
-    setCurrentMediaFilter(settings.mediaFilter);
-    setSelectedMediaIndex(null);
-    setCurrentPid(0);
-    setHasMore(true);
-    setMediaItems([]);
+    // Create or switch to Rule34 session
+    const sessionId = getOrCreateSession('rule34', {
+      tags,
+      mediaFilter: settings.mediaFilter,
+    });
+    
     setShowFavorites(false);
     setSelectedFolderId(null);
-    loadRule34Posts(tags, 0, true);
+    
+    // Load Rule34 posts for the session
+    setTimeout(() => loadRule34Posts(tags, 0, true), 0);
   };
 
   const handleBack = () => {
-    if (showYouTubeViewer) {
-      setShowYouTubeViewer(false);
+    if (showYouTubeViewer && activeSessionId) {
+      updateSessionData(activeSessionId, { showViewer: false });
     } else if (showFeed) {
       setShowFeed(false);
     } else if (selectedFolderId) {
       setSelectedFolderId(null);
     } else if (showFavorites) {
       setShowFavorites(false);
-    } else if (currentSubreddit || currentSearchQuery || currentTags) {
-      // Clear current content but stay within the selected source
-      setCurrentSubreddit('');
-      setCurrentTags('');
-      setCurrentSearchQuery('');
-      setIsSearchMode(false);
-      setSubredditInfo(null);
-      setMediaItems([]);
-      setError(null);
+    } else if (activeSessionId) {
+      // Close the active session
+      closeSession(activeSessionId);
     } else {
-      // If we're on the input page with no active content, go back to source selection
+      // Go back to source selection
       setSettings(prev => ({ ...prev, selectedSource: null }));
-      // Don't reset selectedSource - stay on the input page for the current source
     }
   };
 
@@ -434,20 +463,30 @@ function App() {
   };
 
   const handleSortChange = (sort: RedditSortType) => {
-    setCurrentSort(sort);
+    if (!activeSessionId) return;
+    
+    updateSessionData(activeSessionId, { sort });
     setSettings(prev => ({ ...prev, defaultSort: sort }));
+    
     if (currentSubreddit && !isSearchMode) {
-      setMediaItems([]);
-      setNextPageToken(null);
-      setHasMore(true);
-      loadSubreddit(currentSubreddit, sort, true);
+      updateSession(activeSessionId, {
+        mediaItems: [],
+        nextPageToken: null,
+        hasMore: true,
+      });
+      setTimeout(() => loadSubreddit(currentSubreddit, sort, true), 0);
     }
   };
 
   const handleMediaFilterChange = (filter: MediaFilter) => {
-    setCurrentMediaFilter(filter);
+    if (activeSessionId) {
+      updateSessionData(activeSessionId, { mediaFilter: filter });
+    }
     setSettings(prev => ({ ...prev, mediaFilter: filter }));
-    setSelectedMediaIndex(null);
+    
+    if (activeSessionId) {
+      updateSession(activeSessionId, { selectedMediaIndex: null });
+    }
   };
   
   const handleToggleFavoriteSubreddit = (subreddit: string) => {
@@ -505,21 +544,21 @@ function App() {
   const handleLoadMore = async () => {
     return new Promise<void>((resolve) => {
       const originalLoadMore = () => {
-        if (hasMore) {
-          if (settings.selectedSource === 'reddit' && nextPageToken) {
+        if (hasMore && activeSession) {
+          if (activeSession.type === 'reddit' && activeSession.state.nextPageToken) {
             if (isSearchMode && currentSearchQuery) {
               if (currentSubreddit) {
                 // Subreddit-specific search
-                loadSearchResults(currentSearchQuery, currentSubreddit, undefined, false);
+                setTimeout(() => loadSearchResults(currentSearchQuery, currentSubreddit, undefined, false), 0);
               } else {
                 // Global Reddit search
-                loadSearchResults(currentSearchQuery, undefined, currentSearchSort, false);
+                setTimeout(() => loadSearchResults(currentSearchQuery, undefined, 'relevance', false), 0);
               }
             } else if (currentSubreddit) {
-              loadSubreddit(currentSubreddit, currentSort, false);
+              setTimeout(() => loadSubreddit(currentSubreddit, currentSort, false), 0);
             }
-          } else if (settings.selectedSource === 'rule34' && currentPid !== null) {
-            loadRule34Posts(currentTags, currentPid, false);
+          } else if (activeSession.type === 'rule34' && activeSession.state.currentPid !== null) {
+            setTimeout(() => loadRule34Posts(currentTags, activeSession.state.currentPid, false), 0);
           }
         }
       };
@@ -843,18 +882,31 @@ function App() {
   };
 
   const handleWatchYouTubeVideos = (videos: YouTubeVideo[]) => {
+    // Create or switch to YouTube session
+    const sessionId = getOrCreateSession('youtube', {
+      selectedVideos: videos,
+      showViewer: true,
+    });
+    
     setSettings(prev => ({ ...prev, selectedYouTubeVideos: videos }));
-    setShowYouTubeViewer(true);
   };
 
   const handleCloseYouTubeViewer = () => {
-    setShowYouTubeViewer(false);
+    if (activeSessionId) {
+      updateSessionData(activeSessionId, { showViewer: false });
+    }
   };
 
   const handleRemoveYouTubeVideo = (videoId: string) => {
+    const updatedVideos = selectedYouTubeVideos.filter(v => v.id !== videoId);
+    
+    if (activeSessionId) {
+      updateSessionData(activeSessionId, { selectedVideos: updatedVideos });
+    }
+    
     setSettings(prev => ({
       ...prev,
-      selectedYouTubeVideos: prev.selectedYouTubeVideos.filter(v => v.id !== videoId)
+      selectedYouTubeVideos: updatedVideos
     }));
   };
 
@@ -902,40 +954,54 @@ function App() {
       if (actualIndex === -1) {
         // If item not found, add it to the beginning
         feedItems.unshift(item);
-        setMediaItems(feedItems);
-        setSelectedMediaIndex(0);
+        if (activeSessionId) {
+          updateSession(activeSessionId, { 
+            mediaItems: feedItems,
+            selectedMediaIndex: 0 
+          });
+        }
       } else {
-        setSelectedMediaIndex(actualIndex);
+        if (activeSessionId) {
+          updateSession(activeSessionId, { selectedMediaIndex: actualIndex });
+        }
       }
     } else if (selectedFolderId && selectedFolderId !== '__folders_list__') {
       // When viewing a specific folder, use the folder's media items
       const folder = settings.mediaFolders.find(f => f.id === selectedFolderId);
       if (folder) {
-        setSelectedMediaIndex(index);
+        if (activeSessionId) {
+          updateSession(activeSessionId, { selectedMediaIndex: index });
+        }
         // Temporarily set the media items to the folder's items for the viewer
-        setMediaItems(folder.mediaItems);
+        if (activeSessionId) {
+          updateSession(activeSessionId, { mediaItems: folder.mediaItems });
+        }
       }
     } else {
       // For regular subreddit view, find the actual index in the unfiltered array
       const actualIndex = mediaItems.findIndex(mediaItem => mediaItem.id === item.id);
-      setSelectedMediaIndex(actualIndex);
+      if (activeSessionId) {
+        updateSession(activeSessionId, { selectedMediaIndex: actualIndex });
+      }
     }
   };
 
   const handleCloseViewer = () => {
-    setSelectedMediaIndex(null);
+    if (activeSessionId) {
+      updateSession(activeSessionId, { selectedMediaIndex: null });
+    }
   };
 
   const handleNavigateMedia = (index: number) => {
-    if (index >= 0 && index < mediaItems.length) {
-      setSelectedMediaIndex(index);
+    if (index >= 0 && index < mediaItems.length && activeSessionId) {
+      updateSession(activeSessionId, { selectedMediaIndex: index });
     }
   };
 
   const themeClasses = getThemeClasses();
 
   // Source selection screen
-  if (!settings.selectedSource) {
+  if (!settings.selectedSource && sessions.length === 0) {
     return (
       <div className={`min-h-screen ${themeClasses.bg}`}>
         <Header 
@@ -957,7 +1023,7 @@ function App() {
   }
 
   // Subreddit selection screen (for Reddit)
-  if (settings.selectedSource === 'reddit' && !currentSubreddit && !currentSearchQuery && !showFavorites && !selectedFolderId && !showFeed) {
+  if (settings.selectedSource === 'reddit' && !activeSession && !showFavorites && !selectedFolderId && !showFeed) {
     return (
       <div className={`min-h-screen ${themeClasses.bg}`}>
         <Header 
@@ -1000,7 +1066,7 @@ function App() {
   }
 
   // Tags selection screen (for Rule34)
-  if (settings.selectedSource === 'rule34' && !currentTags && !showFavorites && !selectedFolderId && !showFeed && !showYouTubeViewer) {
+  if (settings.selectedSource === 'rule34' && !activeSession && !showFavorites && !selectedFolderId && !showFeed && !showYouTubeViewer) {
     return (
       <div className={`min-h-screen ${themeClasses.bg}`}>
         <Header 
@@ -1029,7 +1095,7 @@ function App() {
   }
 
   // YouTube selection screen
-  if (settings.selectedSource === 'youtube' && !showYouTubeViewer && !showFavorites && !selectedFolderId && !showFeed) {
+  if (settings.selectedSource === 'youtube' && !activeSession && !showFavorites && !selectedFolderId && !showFeed) {
     return (
       <div className={`min-h-screen ${themeClasses.bg}`}>
         <Header 
@@ -1060,65 +1126,90 @@ function App() {
   }
 
   // YouTube Multi-Viewer
-  if (showYouTubeViewer && settings.selectedYouTubeVideos.length > 0) {
+  if (showYouTubeViewer && selectedYouTubeVideos.length > 0) {
     return (
-      <YouTubeMultiViewer
-        videos={settings.selectedYouTubeVideos}
-        onClose={handleCloseYouTubeViewer}
-        theme={settings.theme}
-        onRemoveVideo={handleRemoveYouTubeVideo}
-      />
+      <div className="flex h-screen">
+        <GlobalSidebar
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onSessionSelect={switchToSession}
+          onSessionClose={closeSession}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          theme={settings.theme}
+        />
+        <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-12' : 'ml-80'}`}>
+          <YouTubeMultiViewer
+            videos={selectedYouTubeVideos}
+            onClose={handleCloseYouTubeViewer}
+            theme={settings.theme}
+            onRemoveVideo={handleRemoveYouTubeVideo}
+          />
+        </div>
+      </div>
     );
   }
 
   // Error screen
   if (error) {
     return (
-      <div className={`min-h-screen ${themeClasses.bg}`}>
-        <Header 
-          theme={settings.theme} 
-          onThemeChange={handleThemeChange}
-          onBack={handleBack}
-          currentSource={settings.selectedSource}
-          currentSubreddit={currentSubreddit}
-          currentTags={currentTags}
-          currentSearchQuery={currentSearchQuery}
-          isSearchMode={isSearchMode}
-          subredditInfo={subredditInfo}
-          currentSort={currentSort}
-          favoriteSubreddits={settings.favoriteSubreddits}
-          onToggleFavoriteSubreddit={handleToggleFavoriteSubreddit}
-          onSortChange={handleSortChange}
-          onShowFolders={handleShowFolders}
-          folderCount={settings.mediaFolders.length}
-          onShowFeed={handleShowFeed}
-          favoriteSubredditsCount={settings.favoriteSubreddits.length}
-          onSubredditSearch={handleSubredditSearch}
-          currentSearchSort={currentSearchSort}
-          onSearchSortChange={handleSearchSortChange}
-          user={userProfile}
-          onShowAuth={handleShowAuth}
-          onSignOut={handleSignOut}
-          isSyncing={cloudSync.isSyncing}
+      <div className="flex h-screen">
+        <GlobalSidebar
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onSessionSelect={switchToSession}
+          onSessionClose={closeSession}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          theme={settings.theme}
         />
-        <div className="flex items-center justify-center min-h-[60vh] p-6">
-          <div className={`${themeClasses.card} border rounded-2xl p-8 max-w-md w-full text-center`}>
-            <AlertCircle className={`w-12 h-12 text-red-400 mx-auto mb-4`} />
-            <h2 className={`text-xl font-semibold ${themeClasses.text} mb-2`}>Error Loading Content</h2>
-            <p className={`${themeClasses.subtext} mb-6`}>{error}</p>
-            <button
-              onClick={() => {
-                if (isSearchMode && currentSearchQuery) {
-                  loadSearchResults(currentSearchQuery, currentSubreddit || undefined, currentSearchSort, true);
-                } else if (currentSubreddit) {
-                  loadSubreddit(currentSubreddit, currentSort, true);
-                }
-              }}
-              className={`${themeClasses.button} text-white px-6 py-3 rounded-xl transition-all duration-200 hover:scale-105 flex items-center gap-2 mx-auto`}
-            >
-              <RefreshCw className="w-4 h-4" />
-              Try Again
-            </button>
+        <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-12' : 'ml-80'}`}>
+          <div className={`min-h-screen ${themeClasses.bg}`}>
+            <Header 
+              theme={settings.theme} 
+              onThemeChange={handleThemeChange}
+              onBack={handleBack}
+              currentSource={activeSession?.type}
+              currentSubreddit={currentSubreddit}
+              currentTags={currentTags}
+              currentSearchQuery={currentSearchQuery}
+              isSearchMode={isSearchMode}
+              currentSort={currentSort}
+              favoriteSubreddits={settings.favoriteSubreddits}
+              onToggleFavoriteSubreddit={handleToggleFavoriteSubreddit}
+              onSortChange={handleSortChange}
+              onShowFolders={handleShowFolders}
+              folderCount={settings.mediaFolders.length}
+              onShowFeed={handleShowFeed}
+              favoriteSubredditsCount={settings.favoriteSubreddits.length}
+              onSubredditSearch={handleSubredditSearch}
+              currentSearchSort={'relevance'}
+              onSearchSortChange={handleSearchSortChange}
+              user={userProfile}
+              onShowAuth={handleShowAuth}
+              onSignOut={handleSignOut}
+              isSyncing={cloudSync.isSyncing}
+            />
+            <div className="flex items-center justify-center min-h-[60vh] p-6">
+              <div className={`${themeClasses.card} border rounded-2xl p-8 max-w-md w-full text-center`}>
+                <AlertCircle className={`w-12 h-12 text-red-400 mx-auto mb-4`} />
+                <h2 className={`text-xl font-semibold ${themeClasses.text} mb-2`}>Error Loading Content</h2>
+                <p className={`${themeClasses.subtext} mb-6`}>{error}</p>
+                <button
+                  onClick={() => {
+                    if (isSearchMode && currentSearchQuery) {
+                      loadSearchResults(currentSearchQuery, currentSubreddit || undefined, 'relevance', true);
+                    } else if (currentSubreddit) {
+                      loadSubreddit(currentSubreddit, currentSort, true);
+                    }
+                  }}
+                  className={`${themeClasses.button} text-white px-6 py-3 rounded-xl transition-all duration-200 hover:scale-105 flex items-center gap-2 mx-auto`}
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Try Again
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1127,17 +1218,26 @@ function App() {
 
   // Main app screen
   return (
-    <div className={`min-h-screen ${themeClasses.bg}`}>
+    <div className="flex h-screen">
+      <GlobalSidebar
+        sessions={sessions}
+        activeSessionId={activeSessionId}
+        onSessionSelect={switchToSession}
+        onSessionClose={closeSession}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+        theme={settings.theme}
+      />
+      <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-12' : 'ml-80'} ${themeClasses.bg}`}>
       <Header 
         theme={settings.theme} 
         onThemeChange={handleThemeChange}
         onBack={handleBack}
-        currentSource={settings.selectedSource}
+        currentSource={activeSession?.type}
         currentSubreddit={currentSubreddit}
         currentTags={currentTags}
         currentSearchQuery={currentSearchQuery}
         isSearchMode={isSearchMode}
-        subredditInfo={subredditInfo}
         currentSort={currentSort}
         favoriteSubreddits={settings.favoriteSubreddits}
         onToggleFavoriteSubreddit={handleToggleFavoriteSubreddit}
@@ -1150,7 +1250,7 @@ function App() {
         onShowFolders={handleShowFolders}
         folderCount={settings.mediaFolders.length}
         onSubredditSearch={handleSubredditSearch}
-        currentSearchSort={currentSearchSort}
+        currentSearchSort={'relevance'}
         onSearchSortChange={handleSearchSortChange}
         user={userProfile}
         onShowAuth={handleShowAuth}
@@ -1259,6 +1359,18 @@ function App() {
         )}
       </main>
 
+      </div>
+    </div>
+  );
+}
+
+export default App;
+      </div>
+    </div>
+  );
+}
+
+export default App;
       {selectedMediaIndex !== null && (
         <MediaViewer
           items={mediaItems}
@@ -1270,17 +1382,3 @@ function App() {
           onToggleFavorite={handleToggleFavoriteMedia}
         />
       )}
-
-      {/* Auth Modal */}
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSignIn={handleSignIn}
-        onSignUp={handleSignUp}
-        theme={settings.theme}
-      />
-    </div>
-  );
-}
-
-export default App;

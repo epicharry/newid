@@ -126,3 +126,36 @@ export interface ContextMenuPosition {
   x: number;
   y: number;
 }
+
+export interface ViewerSession {
+  id: string;
+  type: 'reddit' | 'rule34' | 'youtube';
+  title: string;
+  icon: string;
+  data: {
+    // Reddit specific
+    subreddit?: string;
+    searchQuery?: string;
+    isSearchMode?: boolean;
+    sort?: RedditSortType;
+    mediaFilter?: MediaFilter;
+    
+    // Rule34 specific
+    tags?: string;
+    
+    // YouTube specific
+    selectedVideos?: YouTubeVideo[];
+    showViewer?: boolean;
+  };
+  state: {
+    mediaItems: MediaItem[];
+    isLoading: boolean;
+    error: string | null;
+    nextPageToken: string | null;
+    currentPid: number;
+    hasMore: boolean;
+    selectedMediaIndex: number | null;
+  };
+  createdAt: Date;
+  lastActiveAt: Date;
+}
