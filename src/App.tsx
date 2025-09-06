@@ -24,6 +24,26 @@ import { AlertCircle, RefreshCw } from 'lucide-react';
 function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [settings, setSettings] = useLocalStorage<AppSettings>('mediaVault_settings', {
+    selectedSource: null,
+    theme: 'auto',
+    defaultSort: 'hot',
+    favoriteSubreddits: [],
+    favoriteMedia: [],
+    mediaFilter: 'all',
+    mediaFolders: [],
+    selectedYouTubeVideos: [],
+    youtubeApiKey: ''
+  });
+  const [favoriteMediaItems, setFavoriteMediaItems] = useState<MediaItem[]>([]);
+  const [feedMediaItems, setFeedMediaItems] = useState<MediaItem[]>([]);
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+  const [showFeed, setShowFeed] = useState(false);
+  const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
+  const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
+  const [subredditInfo, setSubredditInfo] = useState<SubredditInfo | null>(null);
+  const [shouldSyncLocalDataToCloud, setShouldSyncLocalDataToCloud] = useState(false);
+
   // Session management
   const {
     sessions,
