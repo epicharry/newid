@@ -19,61 +19,7 @@ import { useAuth } from './hooks/useAuth';
 import { useCloudSync } from './hooks/useCloudSync';
 import { AlertCircle, RefreshCw } from 'lucide-react';
 
-// Global fullscreen management
-const useGlobalFullscreen = () => {
-  const [isFullscreen, setIsFullscreen] = useState(false);
-
-  useEffect(() => {
-    const handleFullscreenChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
-
-    const handleKeyPress = (e: KeyboardEvent) => {
-      if (e.key === 'F11') {
-        e.preventDefault();
-        toggleFullscreen();
-      } else if (e.key === 'Escape' && document.fullscreenElement) {
-        e.preventDefault();
-        exitFullscreen();
-      }
-    };
-
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('keydown', handleKeyPress);
-
-    return () => {
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      document.removeEventListener('keydown', handleKeyPress);
-    };
-  }, []);
-
-  const toggleFullscreen = async () => {
-    try {
-      if (!document.fullscreenElement) {
-        await document.documentElement.requestFullscreen();
-      } else {
-        await document.exitFullscreen();
-      }
-    } catch (error) {
-      console.error('Fullscreen error:', error);
-    }
-  };
-
-  const exitFullscreen = async () => {
-    try {
-      if (document.fullscreenElement) {
-        await document.exitFullscreen();
-      }
-    } catch (error) {
-      console.error('Exit fullscreen error:', error);
-    }
-  };
-
-  return { isFullscreen, toggleFullscreen, exitFullscreen };
-};
-
 function App() {
-  const { isFullscreen, toggleFullscreen } = useGlobalFullscreen();
   const [mediaItems, setMediaItems] = useState<MediaItem[]>([]);
   const [settings, setSettings] = useLocalStorage<AppSettings>('mediaVault_settings', {
     theme: 'light',
@@ -993,8 +939,6 @@ function App() {
           onShowAuth={handleShowAuth}
           onSignOut={handleSignOut}
           isSyncing={cloudSync.isSyncing}
-          isFullscreen={isFullscreen}
-          onToggleFullscreen={toggleFullscreen}
         />
         <SourceSelector 
           onSourceSelect={handleSourceSelect} 
@@ -1025,8 +969,6 @@ function App() {
           onShowAuth={handleShowAuth}
           onSignOut={handleSignOut}
           isSyncing={cloudSync.isSyncing}
-          isFullscreen={isFullscreen}
-          onToggleFullscreen={toggleFullscreen}
         />
         <SubredditInput
           onSubredditSelect={handleSubredditSelect}
@@ -1069,8 +1011,6 @@ function App() {
           onShowAuth={handleShowAuth}
           onSignOut={handleSignOut}
           isSyncing={cloudSync.isSyncing}
-          isFullscreen={isFullscreen}
-          onToggleFullscreen={toggleFullscreen}
         />
         <Rule34Input
           onTagsSelect={handleTagsSelect}
@@ -1098,10 +1038,6 @@ function App() {
           onShowAuth={handleShowAuth}
           onSignOut={handleSignOut}
           isSyncing={cloudSync.isSyncing}
-          isFullscreen={isFullscreen}
-          onToggleFullscreen={toggleFullscreen}
-          isFullscreen={isFullscreen}
-          onToggleFullscreen={toggleFullscreen}
         />
         <YouTubeInput
           onVideosSelect={handleWatchYouTubeVideos}
@@ -1156,10 +1092,6 @@ function App() {
           onShowAuth={handleShowAuth}
           onSignOut={handleSignOut}
           isSyncing={cloudSync.isSyncing}
-          isFullscreen={isFullscreen}
-          onToggleFullscreen={toggleFullscreen}
-          isFullscreen={isFullscreen}
-          onToggleFullscreen={toggleFullscreen}
         />
         <div className="flex items-center justify-center min-h-[60vh] p-6">
           <div className={`${themeClasses.card} border rounded-2xl p-8 max-w-md w-full text-center`}>
