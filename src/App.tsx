@@ -29,7 +29,7 @@ function App() {
     mediaFolders: [],
     defaultSort: 'hot',
     mediaFilter: 'all',
-    youtubeApiKey: 'AIzaSyB1t40Vu0QDO1bqhnK76sByujGr0NIFH8g',
+    youtubeApiKey: '',
     selectedYouTubeVideos: [],
   });
   
