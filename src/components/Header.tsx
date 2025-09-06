@@ -5,6 +5,74 @@ import { ThemeToggle } from './ThemeToggle';
 import { ThemeMode, MediaSource, SubredditInfo, RedditSortType, MediaFilter } from '../types/app';
 import { UserProfile } from '../lib/supabase';
 
+// Electron Fullscreen Button Component
+function ElectronFullscreenButton({ theme }: { theme: ThemeMode }) {
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+
+  const getThemeClasses = () => {
+    switch (theme) {
+      case 'light':
+        return {
+          button: 'text-gray-600 hover:text-blue-600 hover:bg-blue-50',
+          activeButton: 'bg-blue-500 text-white',
+        };
+      case 'dark':
+        return {
+          button: 'text-gray-400 hover:text-blue-400 hover:bg-gray-700',
+          activeButton: 'bg-blue-500 text-white',
+        };
+      default:
+        return {
+          button: 'text-gray-500 hover:text-blue-500 hover:bg-gray-100',
+          activeButton: 'bg-blue-500 text-white',
+        };
+    }
+  };
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      // Check initial fullscreen state
+      window.electronAPI.isFullscreen().then(setIsFullscreen);
+
+      // Listen for fullscreen changes
+      const handleFullscreenChange = (fullscreen: boolean) => {
+        setIsFullscreen(fullscreen);
+      };
+
+      window.electronAPI.onFullscreenChange(handleFullscreenChange);
+    }
+  }, []);
+
+  const handleToggleFullscreen = () => {
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      window.electronAPI.toggleFullscreen();
+    }
+  };
+
+  // Only show in Electron environment
+  if (typeof window === 'undefined' || !window.electronAPI) {
+    return null;
+  }
+
+  const themeClasses = getThemeClasses();
+
+  return (
+    <button
+      onClick={handleToggleFullscreen}
+      className={`p-2 rounded-xl transition-all duration-200 hover:scale-110 ${
+        isFullscreen ? themeClasses.activeButton : themeClasses.button
+      }`}
+      title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+    >
+      {isFullscreen ? (
+        <Minimize className="w-5 h-5" />
+      ) : (
+        <Maximize className="w-5 h-5" />
+      )}
+    </button>
+  );
+}
+
 interface HeaderProps {
   theme: ThemeMode;
   onThemeChange: (theme: ThemeMode) => void;
