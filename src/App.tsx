@@ -161,7 +161,7 @@ function App() {
     if (!authLoading) {
       loadCloudData();
     }
-  }, [isAuthenticated, user, authLoading]);
+  }, [isAuthenticated, user?.id, authLoading]);
 
   // Reset cloud data flag when user signs out
   useEffect(() => {
@@ -208,7 +208,7 @@ function App() {
     };
 
     syncLocalData();
-  }, [isAuthenticated, user, shouldSyncLocalDataToCloud]);
+  }, [isAuthenticated, user?.id, shouldSyncLocalDataToCloud, settings.favoriteMedia.length, settings.favoriteSubreddits.length, settings.mediaFolders.length]);
 
   // Filter media items based on current filter
   const filteredMediaItems = mediaItems.filter(item => {
@@ -1000,66 +1000,98 @@ function App() {
   const themeClasses = getThemeClasses();
 
   // Source selection screen
-  if (!settings.selectedSource && sessions.length === 0) {
+  if (!settings.selectedSource && sessions.length === 0 && !showFavorites && !selectedFolderId && !showFeed) {
     return (
-      <div className={`min-h-screen ${themeClasses.bg}`}>
-        <Header 
-          theme={settings.theme} 
-          onThemeChange={handleThemeChange}
-          currentSort={currentSort}
-          subredditInfo={subredditInfo}
-          user={userProfile}
-          onShowAuth={handleShowAuth}
-          onSignOut={handleSignOut}
-          isSyncing={cloudSync.isSyncing}
-        />
-        <SourceSelector 
-          onSourceSelect={handleSourceSelect} 
+      <div className="flex h-screen">
+        <GlobalSidebar
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onSessionSelect={switchToSession}
+          onSessionClose={closeSession}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           theme={settings.theme}
         />
+        <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-12' : 'ml-80'}`}>
+          <div className={`min-h-screen ${themeClasses.bg}`}>
+            <Header 
+              theme={settings.theme} 
+              onThemeChange={handleThemeChange}
+              currentSort={currentSort}
+              subredditInfo={subredditInfo}
+              user={userProfile}
+              onShowAuth={handleShowAuth}
+              onSignOut={handleSignOut}
+              isSyncing={cloudSync.isSyncing}
+              onShowFolders={handleShowFolders}
+              folderCount={settings.mediaFolders.length}
+              onShowFeed={handleShowFeed}
+              favoriteSubredditsCount={settings.favoriteSubreddits.length}
+              onToggleFavorites={handleToggleFavorites}
+              favoriteCount={settings.favoriteMedia.length}
+            />
+            <SourceSelector 
+              onSourceSelect={handleSourceSelect} 
+              theme={settings.theme}
+            />
+          </div>
+        </div>
       </div>
     );
   }
 
   // Subreddit selection screen (for Reddit)
-  if (settings.selectedSource === 'reddit' && !activeSession && !showFavorites && !selectedFolderId && !showFeed) {
+  if (settings.selectedSource === 'reddit' && !activeSession && !showFavorites && !selectedFolderId && !showFeed && !showYouTubeViewer) {
     return (
-      <div className={`min-h-screen ${themeClasses.bg}`}>
-        <Header 
-          theme={settings.theme} 
-          onThemeChange={handleThemeChange}
-          onBack={handleBack}
-          currentSource={settings.selectedSource}
-          currentSort={currentSort}
-          subredditInfo={subredditInfo}
-          onShowFolders={handleShowFolders}
-          folderCount={settings.mediaFolders.length}
-          onShowFeed={handleShowFeed}
-          favoriteSubredditsCount={settings.favoriteSubreddits.length}
-          onSearchAllReddit={handleSearchAllReddit}
-          showGlobalSearch={true}
-          user={userProfile}
-          onShowAuth={handleShowAuth}
-          onSignOut={handleSignOut}
-          isSyncing={cloudSync.isSyncing}
-        />
-        <SubredditInput
-          onSubredditSelect={handleSubredditSelect}
-          favoriteSubreddits={settings.favoriteSubreddits}
-          onToggleFavorite={handleToggleFavoriteSubreddit}
-          theme={settings.theme}
-          defaultSort={currentSort}
-          onSortChange={handleSortChange}
-        />
-        
-        {/* Auth Modal */}
-        <AuthModal
-          isOpen={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-          onSignIn={handleSignIn}
-          onSignUp={handleSignUp}
+      <div className="flex h-screen">
+        <GlobalSidebar
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onSessionSelect={switchToSession}
+          onSessionClose={closeSession}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           theme={settings.theme}
         />
+        <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-12' : 'ml-80'}`}>
+          <div className={`min-h-screen ${themeClasses.bg}`}>
+            <Header 
+              theme={settings.theme} 
+              onThemeChange={handleThemeChange}
+              onBack={handleBack}
+              currentSource={settings.selectedSource}
+              currentSort={currentSort}
+              subredditInfo={subredditInfo}
+              onShowFolders={handleShowFolders}
+              folderCount={settings.mediaFolders.length}
+              onShowFeed={handleShowFeed}
+              favoriteSubredditsCount={settings.favoriteSubreddits.length}
+              onSearchAllReddit={handleSearchAllReddit}
+              showGlobalSearch={true}
+              user={userProfile}
+              onShowAuth={handleShowAuth}
+              onSignOut={handleSignOut}
+              isSyncing={cloudSync.isSyncing}
+            />
+            <SubredditInput
+              onSubredditSelect={handleSubredditSelect}
+              favoriteSubreddits={settings.favoriteSubreddits}
+              onToggleFavorite={handleToggleFavoriteSubreddit}
+              theme={settings.theme}
+              defaultSort={currentSort}
+              onSortChange={handleSortChange}
+            />
+            
+            {/* Auth Modal */}
+            <AuthModal
+              isOpen={showAuthModal}
+              onClose={() => setShowAuthModal(false)}
+              onSignIn={handleSignIn}
+              onSignUp={handleSignUp}
+              theme={settings.theme}
+            />
+          </div>
+        </div>
       </div>
     );
   }
@@ -1067,28 +1099,41 @@ function App() {
   // Tags selection screen (for Rule34)
   if (settings.selectedSource === 'rule34' && !activeSession && !showFavorites && !selectedFolderId && !showFeed && !showYouTubeViewer) {
     return (
-      <div className={`min-h-screen ${themeClasses.bg}`}>
-        <Header 
-          theme={settings.theme} 
-          onThemeChange={handleThemeChange}
-          onBack={handleBack}
-          currentSource={settings.selectedSource}
-          currentSort={currentSort}
-          subredditInfo={subredditInfo}
-          onShowFolders={handleShowFolders}
-          folderCount={settings.mediaFolders.length}
-          showFeed={showFeed}
-          onShowFeed={handleShowFeed}
-          favoriteSubredditsCount={settings.favoriteSubreddits.length}
-          user={userProfile}
-          onShowAuth={handleShowAuth}
-          onSignOut={handleSignOut}
-          isSyncing={cloudSync.isSyncing}
-        />
-        <Rule34Input
-          onTagsSelect={handleTagsSelect}
+      <div className="flex h-screen">
+        <GlobalSidebar
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onSessionSelect={switchToSession}
+          onSessionClose={closeSession}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           theme={settings.theme}
         />
+        <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-12' : 'ml-80'}`}>
+          <div className={`min-h-screen ${themeClasses.bg}`}>
+            <Header 
+              theme={settings.theme} 
+              onThemeChange={handleThemeChange}
+              onBack={handleBack}
+              currentSource={settings.selectedSource}
+              currentSort={currentSort}
+              subredditInfo={subredditInfo}
+              onShowFolders={handleShowFolders}
+              folderCount={settings.mediaFolders.length}
+              showFeed={showFeed}
+              onShowFeed={handleShowFeed}
+              favoriteSubredditsCount={settings.favoriteSubreddits.length}
+              user={userProfile}
+              onShowAuth={handleShowAuth}
+              onSignOut={handleSignOut}
+              isSyncing={cloudSync.isSyncing}
+            />
+            <Rule34Input
+              onTagsSelect={handleTagsSelect}
+              theme={settings.theme}
+            />
+          </div>
+        </div>
       </div>
     );
   }
@@ -1096,30 +1141,43 @@ function App() {
   // YouTube selection screen
   if (settings.selectedSource === 'youtube' && !activeSession && !showFavorites && !selectedFolderId && !showFeed) {
     return (
-      <div className={`min-h-screen ${themeClasses.bg}`}>
-        <Header 
-          theme={settings.theme} 
-          onThemeChange={handleThemeChange}
-          onBack={handleBack}
-          currentSource={settings.selectedSource}
-          onShowFolders={handleShowFolders}
-          folderCount={settings.mediaFolders.length}
-          showFeed={showFeed}
-          onShowFeed={handleShowFeed}
-          favoriteSubredditsCount={settings.favoriteSubreddits.length}
-          user={userProfile}
-          onShowAuth={handleShowAuth}
-          onSignOut={handleSignOut}
-          isSyncing={cloudSync.isSyncing}
-        />
-        <YouTubeInput
-          onVideosSelect={handleWatchYouTubeVideos}
+      <div className="flex h-screen">
+        <GlobalSidebar
+          sessions={sessions}
+          activeSessionId={activeSessionId}
+          onSessionSelect={switchToSession}
+          onSessionClose={closeSession}
+          isCollapsed={sidebarCollapsed}
+          onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           theme={settings.theme}
-          apiKey={settings.youtubeApiKey || ''}
-          onApiKeyChange={handleYouTubeApiKeyChange}
-          selectedVideos={settings.selectedYouTubeVideos}
-          onToggleVideo={handleToggleYouTubeVideo}
         />
+        <div className={`flex-1 transition-all duration-300 ${sidebarCollapsed ? 'ml-12' : 'ml-80'}`}>
+          <div className={`min-h-screen ${themeClasses.bg}`}>
+            <Header 
+              theme={settings.theme} 
+              onThemeChange={handleThemeChange}
+              onBack={handleBack}
+              currentSource={settings.selectedSource}
+              onShowFolders={handleShowFolders}
+              folderCount={settings.mediaFolders.length}
+              showFeed={showFeed}
+              onShowFeed={handleShowFeed}
+              favoriteSubredditsCount={settings.favoriteSubreddits.length}
+              user={userProfile}
+              onShowAuth={handleShowAuth}
+              onSignOut={handleSignOut}
+              isSyncing={cloudSync.isSyncing}
+            />
+            <YouTubeInput
+              onVideosSelect={handleWatchYouTubeVideos}
+              theme={settings.theme}
+              apiKey={settings.youtubeApiKey || ''}
+              onApiKeyChange={handleYouTubeApiKeyChange}
+              selectedVideos={settings.selectedYouTubeVideos}
+              onToggleVideo={handleToggleYouTubeVideo}
+            />
+          </div>
+        </div>
       </div>
     );
   }
