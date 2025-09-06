@@ -50,11 +50,12 @@ function createWindow() {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      webSecurity: false, // Disable web security for YouTube
+      webSecurity: true, // Re-enable web security
       allowRunningInsecureContent: true,
       experimentalFeatures: true,
       plugins: true,
       allowDisplayingInsecureContent: true,
+      webviewTag: true, // Enable webview tag
     },
     titleBarStyle: 'default',
     show: false, // Don't show until ready
