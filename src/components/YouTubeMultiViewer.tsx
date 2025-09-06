@@ -352,16 +352,8 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     videoPanels.forEach(panel => {
       if (panel.player) {
         try {
-          if (panel.player.type === 'webview') {
-            // For webview, we can't control playback directly
-            // YouTube's own controls will be used
-            console.log('Webview player - use YouTube controls');
-          } else if (panel.player.plyr) {
-            if (globalPlayerState.isPlaying) {
-              panel.player.plyr.pause();
-            } else {
-              panel.player.plyr.play();
-            }
+          if (globalPlayerState.isPlaying) {
+            panel.player.pause();
           } else {
             panel.player.play();
           }
@@ -377,14 +369,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     videoPanels.forEach(panel => {
       if (panel.player) {
         try {
-          if (panel.player.type === 'webview') {
-            // For webview, we can't control mute directly
-            console.log('Webview player - use YouTube controls');
-          } else if (panel.player.plyr) {
-            panel.player.plyr.muted = !globalPlayerState.isMuted;
-          } else {
-            panel.player.muted = !globalPlayerState.isMuted;
-          }
+          panel.player.muted = !globalPlayerState.isMuted;
         } catch (e) {
           console.warn('Error controlling player:', e);
         }
@@ -397,14 +382,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     videoPanels.forEach(panel => {
       if (panel.player) {
         try {
-          if (panel.player.type === 'webview') {
-            // For webview, we can't control volume directly
-            console.log('Webview player - use YouTube controls');
-          } else if (panel.player.plyr) {
-            panel.player.plyr.volume = volume / 100;
-          } else {
-            panel.player.volume = volume / 100;
-          }
+          panel.player.volume = volume / 100;
         } catch (e) {
           console.warn('Error controlling player:', e);
         }
@@ -417,14 +395,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     videoPanels.forEach(panel => {
       if (panel.player) {
         try {
-          if (panel.player.type === 'webview') {
-            // For webview, we can't control playback rate directly
-            console.log('Webview player - use YouTube controls');
-          } else if (panel.player.plyr) {
-            panel.player.plyr.speed = rate;
-          } else {
-            panel.player.speed = rate;
-          }
+          panel.player.speed = rate;
         } catch (e) {
           console.warn('Error controlling player:', e);
         }
@@ -437,14 +408,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     videoPanels.forEach(panel => {
       if (panel.player) {
         try {
-          if (panel.player.type === 'webview') {
-            // For webview, we can't control quality directly
-            console.log('Webview player - use YouTube controls');
-          } else if (panel.player.plyr) {
-            panel.player.plyr.quality = quality;
-          } else {
-            panel.player.quality = quality;
-          }
+          panel.player.quality = quality;
         } catch (e) {
           console.warn('Error controlling player:', e);
         }
@@ -475,17 +439,8 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
     videoPanels.forEach(panel => {
       if (panel.player) {
         try {
-          if (panel.player.type === 'webview') {
-            // For webview, reload the video
-            const webview = panel.player.webview;
-            webview.src = webview.src;
-          } else if (panel.player.plyr) {
-            panel.player.plyr.currentTime = globalPlayerState.startTime;
-            panel.player.plyr.pause();
-          } else {
-            panel.player.currentTime = globalPlayerState.startTime;
-            panel.player.pause();
-          }
+          panel.player.currentTime = globalPlayerState.startTime;
+          panel.player.pause();
         } catch (e) {
           console.warn('Error restarting player:', e);
         }
@@ -500,8 +455,8 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
 
     if (!panel.isPiP) {
       // Enter PiP mode
-      if (panel.player && panel.player.type === 'plyr' && panel.player.plyr.media && panel.player.plyr.media.requestPictureInPicture) {
-        panel.player.plyr.media.requestPictureInPicture().catch((error: any) => {
+      if (panel.player && panel.player.media && panel.player.media.requestPictureInPicture) {
+        panel.player.media.requestPictureInPicture().catch((error: any) => {
           console.warn('PiP not supported or failed:', error);
           // Fallback to custom PiP
           setVideoPanels(prev => prev.map(p => {
@@ -514,7 +469,7 @@ export function YouTubeMultiViewer({ videos, onClose, theme }: YouTubeMultiViewe
           }));
         });
       } else {
-        // Fallback to custom PiP (for webview or when native PiP fails)
+        // Fallback to custom PiP
         setVideoPanels(prev => prev.map(p => {
           if (p.id === panelId) {
             const newZIndex = maxZIndex + 1;

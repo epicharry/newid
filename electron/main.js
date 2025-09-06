@@ -38,6 +38,7 @@ async function clearAppCache() {
     }
   }
 }
+
 function createWindow() {
   // Create the browser window
   mainWindow = new BrowserWindow({
@@ -45,23 +46,23 @@ function createWindow() {
     height: 900,
     minWidth: 1000,
     minHeight: 700,
-    icon: path.join(__dirname, 'assets', 'icon.png'), // You can place your icon here
+    icon: path.join(__dirname, 'assets', 'icon.png'),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       enableRemoteModule: false,
-      webSecurity: true, // Re-enable web security
+      webSecurity: false, // Allow cross-origin requests for YouTube
       allowRunningInsecureContent: true,
       experimentalFeatures: true,
       plugins: true,
       allowDisplayingInsecureContent: true,
-      webviewTag: true, // Enable webview tag
+      webviewTag: true,
     },
     titleBarStyle: 'default',
-    show: false, // Don't show until ready
+    show: false,
   });
 
-  // Set user agent to mimic Chrome browser for YouTube compatibility
+  // Set user agent to mimic Chrome browser
   const chromeUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
   mainWindow.webContents.setUserAgent(chromeUserAgent);
 
@@ -83,7 +84,7 @@ function createWindow() {
     return false;
   });
 
-  // Intercept requests to modify headers for YouTube
+  // CRITICAL FIX: Remove Referrer-Policy header and ensure proper referrer is sent
   mainWindow.webContents.session.webRequest.onBeforeSendHeaders((details, callback) => {
     // Add/modify headers to make requests look like they're coming from Chrome
     details.requestHeaders['User-Agent'] = chromeUserAgent;
@@ -94,11 +95,29 @@ function createWindow() {
     details.requestHeaders['Connection'] = 'keep-alive';
     details.requestHeaders['Upgrade-Insecure-Requests'] = '1';
     
+    // IMPORTANT: Ensure referrer is sent properly for YouTube
+    if (details.url.includes('youtube.com') || details.url.includes('googlevideo.com')) {
+      details.requestHeaders['Referer'] = 'https://www.youtube.com/';
+    }
+    
     // Remove Electron-specific headers
     delete details.requestHeaders['Electron'];
     delete details.requestHeaders['electron'];
     
     callback({ requestHeaders: details.requestHeaders });
+  });
+
+  // CRITICAL: Handle response headers to remove problematic Referrer-Policy
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    // Remove Referrer-Policy header that blocks YouTube videos
+    if (details.responseHeaders && details.responseHeaders['referrer-policy']) {
+      delete details.responseHeaders['referrer-policy'];
+    }
+    if (details.responseHeaders && details.responseHeaders['Referrer-Policy']) {
+      delete details.responseHeaders['Referrer-Policy'];
+    }
+    
+    callback({ responseHeaders: details.responseHeaders });
   });
 
   // Load the app
@@ -112,7 +131,6 @@ function createWindow() {
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
     
-    // Focus on window
     if (isDev) {
       mainWindow.webContents.openDevTools();
       
@@ -189,7 +207,7 @@ app.whenReady().then(() => {
       if (mainWindow) {
         clearAppCache();
       }
-    }, 2000); // Wait 2 seconds for window to be ready
+    }, 2000);
   }
   
   createWindow();
