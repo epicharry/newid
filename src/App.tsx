@@ -41,7 +41,6 @@ function App() {
   const [selectedMediaIds, setSelectedMediaIds] = useState<Set<string>>(new Set());
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false);
   const [showFeed, setShowFeed] = useState(false);
-  const [showYouTubeViewer, setShowYouTubeViewer] = useState(false);
   const [currentSearchSort, setCurrentSearchSort] = useState<string>('relevance');
   const [shouldSyncLocalDataToCloud, setShouldSyncLocalDataToCloud] = useState(false);
   const [feedMediaItems, setFeedMediaItems] = useState<MediaItem[]>([]);
