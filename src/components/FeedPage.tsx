@@ -311,10 +311,6 @@ export function FeedPage({
                             ? 'bg-pink-500 text-white' 
                             : themeClasses.inactiveButton
                         }`}
-                        onClick={() => {
-                          // Set the media items to this section's items for the viewer
-                          onItemClick(item, itemIndex);
-                        }}
                       >
                         <Icon className="w-4 h-4" />
                       </button>
